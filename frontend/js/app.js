@@ -367,6 +367,8 @@ function chatKeydown(e) {
 }
 
 // ── ADMIN PANEL ────────────────────────────────────────────────────────────
+const ALL_ADMIN_TABS = ['profile','users','nav','sa-users','sa-site','sa-hypatia'];
+
 function showAdminPanel() {
   showView('admin');
   const isAdmin = ['admin','superadmin'].includes(currentUser?.role);
@@ -374,7 +376,10 @@ function showAdminPanel() {
   ['users','nav'].forEach(id => {
     document.getElementById(`admin-tab-${id}`).style.display = isAdmin ? '' : 'none';
   });
-  document.getElementById('admin-tab-sa').style.display = isSuperAdmin ? '' : 'none';
+  ['sa-users','sa-site','sa-hypatia'].forEach(id => {
+    document.getElementById(`admin-tab-${id}`).style.display = isSuperAdmin ? '' : 'none';
+  });
+  document.getElementById('sa-divider').style.display = isSuperAdmin ? '' : 'none';
   // superadmin can create superadmin accounts
   const createRole = document.getElementById('create-role');
   if (isSuperAdmin && !createRole.querySelector('[value="superadmin"]')) {
@@ -382,19 +387,21 @@ function showAdminPanel() {
     opt.value = 'superadmin'; opt.textContent = 'superadmin';
     createRole.appendChild(opt);
   }
-  // pre-fill profile
   document.getElementById('profile-name').value = currentUser?.display_name || '';
   switchAdminTab('profile');
   if (isAdmin) loadAdminUsers();
 }
 
 function switchAdminTab(tab) {
-  ['profile','users','nav'].forEach(t => {
+  ALL_ADMIN_TABS.forEach(t => {
     document.getElementById(`admin-tab-${t}`)?.classList.toggle('active', t === tab);
     document.getElementById(`admin-${t}`)?.classList.toggle('hidden', t !== tab);
   });
   if (tab === 'nav') populateCategorySelect();
   if (tab === 'users') loadAdminUsers();
+  if (tab === 'sa-users') loadSAUsers();
+  if (tab === 'sa-site') loadSiteSettings();
+  if (tab === 'sa-hypatia') loadHypatiaSettings();
 }
 
 async function saveProfile(event) {
@@ -536,16 +543,6 @@ async function setRole(username, role, isSuperAdmin = false) {
 
 // ── SUPER ADMIN ────────────────────────────────────────────────────────────
 // NOTE: All SA endpoints are protected server-side with require_role("superadmin").
-// The view is only shown if role === 'superadmin', but the protection is in the API.
-
-function switchSATab(tab) {
-  ['users','site','hypatia'].forEach(t => {
-    document.getElementById(`sa-tab-${t}`)?.classList.toggle('active', t === tab);
-    document.getElementById(`sa-${t}`)?.classList.toggle('hidden', t !== tab);
-  });
-  if (tab === 'site') loadSiteSettings();
-  if (tab === 'hypatia') loadHypatiaSettings();
-}
 
 async function loadSAUsers() {
   try {

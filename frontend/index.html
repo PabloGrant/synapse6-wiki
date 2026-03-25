@@ -137,7 +137,10 @@
         <button class="tab active" id="admin-tab-profile" onclick="switchAdminTab('profile')">Profile</button>
         <button class="tab admin-tab" id="admin-tab-users" onclick="switchAdminTab('users')" style="display:none">Users</button>
         <button class="tab admin-tab" id="admin-tab-nav" onclick="switchAdminTab('nav')" style="display:none">Navigation</button>
-        <button class="tab sa-tab" id="admin-tab-sa" onclick="showView('superadmin');loadSAUsers()" style="display:none">Super Admin</button>
+        <span class="tab-divider" id="sa-divider" style="display:none"></span>
+        <button class="tab sa-tab" id="admin-tab-sa-users" onclick="switchAdminTab('sa-users')" style="display:none">All Users</button>
+        <button class="tab sa-tab" id="admin-tab-sa-site" onclick="switchAdminTab('sa-site')" style="display:none">Site Settings</button>
+        <button class="tab sa-tab" id="admin-tab-sa-hypatia" onclick="switchAdminTab('sa-hypatia')" style="display:none">Hypatia</button>
       </div>
 
       <!-- PROFILE TAB -->
@@ -196,18 +199,9 @@
           <button type="submit" class="btn-primary">Add Page</button>
         </form>
       </div>
-    </div>
-
-    <!-- SUPER ADMIN PANEL — server-enforced, only rendered for superadmin role -->
-    <div id="superadmin-view" class="hidden">
-      <div class="admin-tabs">
-        <button class="tab active" id="sa-tab-users" onclick="switchSATab('users')">All Users</button>
-        <button class="tab" id="sa-tab-site" onclick="switchSATab('site')">Site Settings</button>
-        <button class="tab" id="sa-tab-hypatia" onclick="switchSATab('hypatia')">Hypatia</button>
-      </div>
 
       <!-- SA USERS TAB -->
-      <div id="sa-users" class="admin-tab-content">
+      <div id="admin-sa-users" class="admin-tab-content hidden">
         <div class="admin-section-title">Pending Approval</div>
         <div id="sa-pending-users"></div>
         <div class="admin-section-title" style="margin-top:24px">All Users (including superadmins)</div>
@@ -215,7 +209,7 @@
       </div>
 
       <!-- SA SITE TAB -->
-      <div id="sa-site" class="admin-tab-content hidden">
+      <div id="admin-sa-site" class="admin-tab-content hidden">
         <div class="admin-section-title">Site Settings</div>
         <form onsubmit="saveSiteSettings(event)" class="col-form">
           <label>Site Name<input type="text" id="site-name-input"></label>
@@ -225,7 +219,7 @@
       </div>
 
       <!-- SA HYPATIA TAB -->
-      <div id="sa-hypatia" class="admin-tab-content hidden">
+      <div id="admin-sa-hypatia" class="admin-tab-content hidden">
         <div class="admin-section-title">LLM Endpoint</div>
         <div style="color:var(--subtext);font-size:13px;margin-bottom:12px">Configured via environment variables on the server (LLM_BASE, LLM_MODEL).</div>
         <div class="admin-section-title">System Prompt</div>
