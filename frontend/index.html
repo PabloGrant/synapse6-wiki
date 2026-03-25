@@ -143,7 +143,10 @@
 
     <!-- ADMIN PANEL -->
     <div id="admin-view" class="hidden">
-      <div class="section-header"><h2>⚙ Administration</h2></div>
+      <div class="section-header">
+        <h2>⚙ Administration</h2>
+        <button id="superadmin-access-btn" class="btn-ghost hidden" onclick="showView('superadmin');loadSAUsers()" title="Super Admin">🔑 Super Admin</button>
+      </div>
       <div class="admin-tabs">
         <button class="tab active" id="admin-tab-users" onclick="switchAdminTab('users')">Users</button>
         <button class="tab" id="admin-tab-nav" onclick="switchAdminTab('nav')">Navigation</button>

@@ -43,6 +43,7 @@ function showApp() {
   });
 
   if (isAdmin) document.getElementById('admin-btn').style.display = '';
+  if (isSuperAdmin) document.getElementById('superadmin-access-btn').classList.remove('hidden');
 
   loadPublicSettings();
   loadNav();
@@ -353,17 +354,10 @@ function chatKeydown(e) {
 
 // ── ADMIN PANEL ────────────────────────────────────────────────────────────
 function showAdminPanel(tab = 'users') {
-  const isSuperAdmin = currentUser?.role === 'superadmin';
-  if (isSuperAdmin) {
-    showView('superadmin');
-    switchSATab('users');
-    loadSAUsers();
-  } else {
-    showView('admin');
-    switchAdminTab(tab);
-    loadAdminUsers();
-    populateCategorySelect();
-  }
+  showView('admin');
+  switchAdminTab(tab);
+  loadAdminUsers();
+  populateCategorySelect();
 }
 
 function switchAdminTab(tab) {
