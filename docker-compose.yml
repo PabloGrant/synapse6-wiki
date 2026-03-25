@@ -1,0 +1,21 @@
+services:
+  wiki:
+    build: .
+    container_name: synapse6-wiki
+    restart: unless-stopped
+    ports:
+      - "8742:8000"
+    volumes:
+      - wiki-data:/data
+    environment:
+      - JWT_SECRET=${JWT_SECRET:-change-me-set-in-env}
+      - MINIO_ENDPOINT=${MINIO_ENDPOINT:-minio.workspace.pablogrant.com}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET=${MINIO_BUCKET:-synapse6-wiki}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-https://minio.workspace.pablogrant.com/synapse6-wiki}
+      - LLM_BASE=${LLM_BASE:-http://10.42.42.3:8011}
+      - LLM_MODEL=${LLM_MODEL:-gpt-oss-120b}
+
+volumes:
+  wiki-data:

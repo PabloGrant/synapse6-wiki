@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Synapse6 Wiki</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="loading">
+
+<!-- AUTH OVERLAY -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="s6-icon">S6</div>
+      <div>
+        <div class="auth-title">Synapse6</div>
+        <div class="auth-sub">Knowledge Base</div>
+      </div>
+    </div>
+    <div id="auth-tabs">
+      <button class="tab active" onclick="switchTab('login')">Sign In</button>
+      <button class="tab" onclick="switchTab('register')">Request Access</button>
+    </div>
+    <form id="login-form" class="auth-form" onsubmit="doLogin(event)">
+      <input type="text" id="login-user" placeholder="Username" required autocomplete="username">
+      <input type="password" id="login-pass" placeholder="Password" required autocomplete="current-password">
+      <button type="submit" class="btn-primary">Sign In</button>
+      <div id="login-error" class="form-error"></div>
+    </form>
+    <form id="register-form" class="auth-form hidden" onsubmit="doRegister(event)">
+      <input type="text" id="reg-name" placeholder="Display Name" required>
+      <input type="text" id="reg-user" placeholder="Username" required autocomplete="username">
+      <input type="password" id="reg-pass" placeholder="Password" required autocomplete="new-password">
+      <button type="submit" class="btn-primary">Request Access</button>
+      <div id="reg-msg" class="form-error"></div>
+    </form>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" class="hidden">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div class="sidebar-logo">
+      <div class="s6-icon">S6</div>
+      <div>
+        <div class="sidebar-title" id="site-name">Synapse6</div>
+        <div class="sidebar-sub" id="site-tagline">Knowledge Base</div>
+      </div>
+    </div>
+
+    <div id="search-wrap">
+      <input type="text" id="search" placeholder="Search pages…" oninput="filterNav(this.value)">
+    </div>
+
+    <nav id="nav-tree">
+      <div class="nav-loading">Loading…</div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div id="user-info">
+        <span id="user-display"></span>
+        <span class="user-role-badge" id="user-role-badge"></span>
+      </div>
+      <div class="sidebar-actions">
+        <button class="icon-btn" onclick="showAdminPanel()" id="admin-btn" title="Admin" style="display:none">⚙</button>
+        <button class="icon-btn" onclick="doLogout()" title="Sign out">⏻</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main id="main">
+
+    <!-- PAGE VIEW -->
+    <div id="page-view">
+      <div id="page-header">
+        <div id="page-breadcrumb"></div>
+        <div id="page-actions">
+          <button class="btn-ghost editor-only hidden" id="edit-btn" onclick="enterEditMode()">✏ Edit</button>
+          <button class="btn-ghost editor-only hidden" id="history-btn" onclick="toggleHistory()">⏱ History</button>
+        </div>
+      </div>
+
+      <!-- VERSION HISTORY PANEL -->
+      <div id="history-panel" class="hidden">
+        <div class="history-title">Version History <button class="close-btn" onclick="toggleHistory()">✕</button></div>
+        <div id="history-list"></div>
+      </div>
+
+      <article id="page-content" class="markdown-body"></article>
+
+      <!-- COMMENTS -->
+      <div id="comments-section">
+        <div class="comments-title">Comments</div>
+        <div id="comments-list"></div>
+        <form id="comment-form" onsubmit="submitComment(event)">
+          <textarea id="comment-input" placeholder="Add a comment…" rows="3"></textarea>
+          <button type="submit" class="btn-primary">Post Comment</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- EDIT VIEW -->
+    <div id="edit-view" class="hidden">
+      <div id="edit-header">
+        <div id="edit-breadcrumb"></div>
+        <div id="edit-actions">
+          <button class="btn-ghost" onclick="insertUpload()">📎 Upload</button>
+          <button class="btn-ghost" onclick="cancelEdit()">Cancel</button>
+          <button class="btn-primary" onclick="savePage()">Save</button>
+        </div>
+      </div>
+      <div id="editor-wrap">
+        <div id="editor-pane">
+          <div class="pane-label">Markdown</div>
+          <textarea id="editor" spellcheck="true" oninput="livePreview()"></textarea>
+        </div>
+        <div id="preview-pane">
+          <div class="pane-label">Preview</div>
+          <div id="editor-preview" class="markdown-body"></div>
+        </div>
+      </div>
+      <input type="file" id="upload-input" accept="image/*,video/*,.pdf" style="display:none" onchange="handleUpload(this)">
+    </div>
+
+    <!-- HYPATIA PAGE -->
+    <div id="hypatia-view" class="hidden">
+      <div class="hypatia-header">
+        <div class="hypatia-title">🧠 Hypatia</div>
+        <div class="hypatia-sub">Ask anything about Synapse6</div>
+        <button class="btn-ghost superadmin-only hidden" onclick="showHypatiaSettings()">⚙ System Prompt</button>
+      </div>
+      <div id="chat-messages"></div>
+      <form id="chat-form" onsubmit="sendChat(event)">
+        <textarea id="chat-input" placeholder="Ask Hypatia…" rows="2" onkeydown="chatKeydown(event)"></textarea>
+        <button type="submit" class="btn-primary" id="chat-send">Send</button>
+      </form>
+    </div>
+
+    <!-- ADMIN PANEL -->
+    <div id="admin-view" class="hidden">
+      <div class="section-header"><h2>⚙ Administration</h2></div>
+      <div class="admin-tabs">
+        <button class="tab active" onclick="switchAdminTab('users')">Users</button>
+        <button class="tab" onclick="switchAdminTab('nav')">Navigation</button>
+        <button class="tab superadmin-only hidden" onclick="switchAdminTab('site')">Site Settings</button>
+      </div>
+
+      <!-- USERS TAB -->
+      <div id="admin-users" class="admin-tab-content">
+        <div class="admin-section-title">Pending Approval</div>
+        <div id="pending-users"></div>
+        <div class="admin-section-title" style="margin-top:24px">All Users</div>
+        <div id="all-users"></div>
+      </div>
+
+      <!-- NAV TAB -->
+      <div id="admin-nav" class="admin-tab-content hidden">
+        <div class="admin-section-title">Add Category</div>
+        <form onsubmit="addCategory(event)" class="inline-form">
+          <input type="text" id="new-cat-name" placeholder="Category name (e.g. 01 Overview)">
+          <button type="submit" class="btn-primary">Add</button>
+        </form>
+        <div class="admin-section-title" style="margin-top:24px">Add Page</div>
+        <form onsubmit="addPage(event)" class="inline-form col">
+          <input type="text" id="new-page-name" placeholder="Page name (e.g. 01 Introduction)">
+          <select id="new-page-cat"><option value="">Select category…</option></select>
+          <select id="new-page-parent"><option value="">Top-level page (no parent)</option></select>
+          <button type="submit" class="btn-primary">Add Page</button>
+        </form>
+      </div>
+
+      <!-- SITE TAB -->
+      <div id="admin-site" class="admin-tab-content hidden">
+        <div class="admin-section-title">Site Settings</div>
+        <form onsubmit="saveSiteSettings(event)" class="col-form">
+          <label>Site Name<input type="text" id="site-name-input"></label>
+          <label>Tagline<input type="text" id="site-tagline-input"></label>
+          <button type="submit" class="btn-primary">Save</button>
+        </form>
+        <div class="admin-section-title" style="margin-top:24px">Hypatia System Prompt</div>
+        <form onsubmit="saveSystemPrompt(event)" class="col-form">
+          <textarea id="system-prompt-input" rows="8"></textarea>
+          <button type="submit" class="btn-primary">Save Prompt</button>
+        </form>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
