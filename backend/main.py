@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import HTTPException
 
@@ -29,6 +29,13 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == 401:
         # Kill the stale cookie so the browser doesn't keep sending it
         response.delete_cookie("session", httponly=True, samesite="lax")
+    return response
+
+@app.get("/signout", include_in_schema=False)
+async def signout():
+    """Hard signout — works even with broken JS or stale cookies. Visit directly in browser."""
+    response = RedirectResponse(url="/", status_code=302)
+    response.delete_cookie("session", httponly=True, samesite="lax")
     return response
 
 app.include_router(auth_router)
