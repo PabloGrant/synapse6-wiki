@@ -193,17 +193,11 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: flex-end;
-  padding: 0 16px; gap: 4px;
-  z-index: 40;
-}
-
-#topbar-user {
-  display: flex; align-items: center; gap: 6px;
+  gap: 6px; padding: 0 16px;
   font-size: 12px; color: var(--subtext);
-  margin-right: auto;
+  z-index: 40;
+  white-space: nowrap;
 }
-
-#topbar-actions { display: flex; align-items: center; gap: 2px; }
 
 /* ── MAIN ── */
 #main {
