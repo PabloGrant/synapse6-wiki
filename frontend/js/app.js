@@ -481,39 +481,82 @@ function renderUserList(containerId, users, showRoleEdit, isSuperAdmin) {
   const prefix = isSuperAdmin ? 'sa' : 'admin';
   const apiPrefix = isSuperAdmin ? '/api/auth/superadmin' : '/api/auth';
   const isPending = containerId.includes('pending');
+  const roles = isSuperAdmin ? ['user','editor','admin','superadmin'] : ['user','editor','admin'];
 
   if (!users.length) {
     el.innerHTML = `<div style="color:var(--subtext);font-size:13px">${isPending ? 'No pending requests' : 'No users'}</div>`;
     return;
   }
 
-  el.innerHTML = users.map(u => `
-    <div class="user-row">
-      <span class="uname">${esc(u.username)}</span>
-      <span class="udisp">${esc(u.display_name)}</span>
-      ${isPending ? `
-        <select id="${prefix}-role-${u.username.replace('@','_')}">
-          <option value="user">user</option>
-          <option value="editor">editor</option>
-          <option value="admin">admin</option>
-          ${isSuperAdmin ? '<option value="superadmin">superadmin</option>' : ''}
-        </select>
-        <button class="btn-approve" onclick="approveUser('${esc(u.username)}',${isSuperAdmin})">Approve</button>
-        <button class="btn-danger" onclick="removeUser('${esc(u.username)}',${isSuperAdmin})">Deny</button>
-      ` : `
-        ${showRoleEdit ? `
-          <select onchange="setRole('${esc(u.username)}',this.value,${isSuperAdmin})">
-            ${['user','editor','admin'].map(r => `<option value="${r}" ${u.role===r?'selected':''}>${r}</option>`).join('')}
-            ${isSuperAdmin ? `<option value="superadmin" ${u.role==='superadmin'?'selected':''}>superadmin</option>` : ''}
+  el.innerHTML = users.map(u => {
+    const safeKey = u.username.replace(/[@.]/g, '_');
+    const isMe = u.username === currentUser?.sub;
+    if (isPending) {
+      return `
+        <div class="user-row">
+          <span class="uname">${esc(u.username)}</span>
+          <span class="udisp">${esc(u.display_name)}</span>
+          <select id="${prefix}-role-${safeKey}">
+            ${roles.map(r => `<option value="${r}">${r}</option>`).join('')}
           </select>
-        ` : ''}
-        <button class="btn-ghost" style="font-size:12px;padding:5px 10px" onclick="openPasswordModal('${esc(u.username)}',${isSuperAdmin})">🔑 Password</button>
-        ${u.username !== currentUser?.sub
-          ? `<button class="btn-danger" onclick="removeUser('${esc(u.username)}',${isSuperAdmin})">Remove</button>`
-          : '<span style="font-size:11px;color:var(--subtext)">you</span>'}
-      `}
-    </div>
-  `).join('');
+          <button class="btn-approve" onclick="approveUser('${esc(u.username)}',${isSuperAdmin})">Approve</button>
+          <button class="btn-danger" onclick="removeUser('${esc(u.username)}',${isSuperAdmin})">Deny</button>
+        </div>`;
+    }
+    return `
+      <div class="user-row" id="row-${safeKey}">
+        <span class="uname">${esc(u.username)}</span>
+        <span class="udisp" id="disp-${safeKey}">${esc(u.display_name)}</span>
+        <span class="urole-badge">${esc(u.role)}</span>
+        ${isMe ? '<span style="font-size:11px;color:var(--subtext)">you</span>' : ''}
+        <button class="btn-ghost" style="font-size:12px;padding:5px 10px;margin-left:auto"
+          onclick="toggleUserEdit('${esc(u.username)}','${safeKey}',${isSuperAdmin})">Edit</button>
+      </div>
+      <div class="user-edit-panel hidden" id="edit-${safeKey}">
+        <div class="user-edit-grid">
+          <label>Display Name
+            <input type="text" id="ename-${safeKey}" value="${esc(u.display_name)}">
+          </label>
+          <label>Role
+            <select id="erole-${safeKey}">
+              ${roles.map(r => `<option value="${r}" ${u.role===r?'selected':''}>${r}</option>`).join('')}
+            </select>
+          </label>
+          <label>Reset Password
+            <input type="password" id="epw-${safeKey}" placeholder="New password (leave blank to keep)">
+          </label>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+          <button class="btn-primary" onclick="saveUserEdit('${esc(u.username)}','${safeKey}',${isSuperAdmin})">Save</button>
+          <button class="btn-ghost" onclick="toggleUserEdit('${esc(u.username)}','${safeKey}',${isSuperAdmin})">Cancel</button>
+          ${!isMe ? `<button class="btn-danger" style="margin-left:auto" onclick="removeUser('${esc(u.username)}',${isSuperAdmin})">Delete</button>` : ''}
+          <span class="form-error" id="emsg-${safeKey}"></span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleUserEdit(username, safeKey, isSuperAdmin) {
+  document.getElementById(`edit-${safeKey}`).classList.toggle('hidden');
+}
+
+async function saveUserEdit(username, safeKey, isSuperAdmin) {
+  const apiPrefix = isSuperAdmin ? '/api/auth/superadmin' : '/api/auth';
+  const msg = document.getElementById(`emsg-${safeKey}`);
+  msg.textContent = '';
+  const enc = encodeURIComponent(username);
+  try {
+    const name = document.getElementById(`ename-${safeKey}`).value.trim();
+    const role = document.getElementById(`erole-${safeKey}`).value;
+    const pw   = document.getElementById(`epw-${safeKey}`).value;
+    await api('PATCH', `${apiPrefix}/users/${enc}/display_name`, { display_name: name });
+    await api('PATCH', `${apiPrefix}/users/${enc}/role`, { role });
+    if (pw) await api('PATCH', `${apiPrefix}/users/${enc}/password`, { password: pw });
+    isSuperAdmin ? loadSAUsers() : loadAdminUsers();
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Save failed';
+  }
 }
 
 async function approveUser(username, isSuperAdmin = false) {

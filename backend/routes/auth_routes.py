@@ -117,6 +117,12 @@ def deny(username: str, caller=Depends(require_role("admin"))):
     return {"ok": True}
 
 
+@router.patch("/users/{username}/display_name", dependencies=[Depends(require_role("admin"))])
+def set_display_name(username: str, body: MeProfileBody):
+    change_display_name(username, body.display_name)
+    return {"ok": True}
+
+
 @router.patch("/users/{username}/role", dependencies=[Depends(require_role("admin"))])
 def set_role(username: str, body: RoleBody, caller=Depends(require_role("admin"))):
     update_user_role(username, body.role, caller_role=caller["role"])
@@ -152,6 +158,12 @@ def superadmin_approve(username: str, body: RoleBody):
 @router.delete("/superadmin/users/{username}", dependencies=[Depends(require_role("superadmin"))])
 def superadmin_deny(username: str):
     deny_user(username, caller_role="superadmin")
+    return {"ok": True}
+
+
+@router.patch("/superadmin/users/{username}/display_name", dependencies=[Depends(require_role("superadmin"))])
+def superadmin_set_display_name(username: str, body: MeProfileBody):
+    change_display_name(username, body.display_name)
     return {"ok": True}
 
 
