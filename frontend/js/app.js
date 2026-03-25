@@ -515,7 +515,7 @@ function renderUserList(containerId, users, showRoleEdit, isSuperAdmin) {
       <div class="user-edit-panel hidden" id="edit-${safeKey}">
         <div class="user-edit-grid">
           <label>Display Name
-            <input type="text" id="ename-${safeKey}" value="${esc(u.display_name)}">
+            <input type="text" id="ename-${safeKey}" value="${esc(u.display_name)}" autocomplete="off">
           </label>
           <label>Role
             <select id="erole-${safeKey}">
