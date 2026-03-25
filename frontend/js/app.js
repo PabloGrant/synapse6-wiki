@@ -57,7 +57,7 @@ function showApp() {
     if (isEditor) el.classList.remove('hidden');
   });
 
-  if (isAdmin) document.getElementById('admin-btn').style.display = '';
+  document.getElementById('admin-btn').style.display = '';
 
   loadPublicSettings();
   loadNav();
