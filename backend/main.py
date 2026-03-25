@@ -1,8 +1,9 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import HTTPException
 
 from routes.auth_routes import router as auth_router
 from routes.nav_routes import router as nav_router
@@ -21,6 +22,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    response = JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    if exc.status_code == 401:
+        # Kill the stale cookie so the browser doesn't keep sending it
+        response.delete_cookie("session", httponly=True, samesite="lax")
+    return response
 
 app.include_router(auth_router)
 app.include_router(nav_router)
