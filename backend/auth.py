@@ -147,11 +147,16 @@ def get_current_user(request: Request) -> dict:
         raise HTTPException(401, "Not authenticated")
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
-        return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(401, "Session expired")
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Invalid session")
+    # Verify user still exists and is still approved
+    users = _load_users()
+    user = users.get(payload["sub"])
+    if not user or not user.get("approved"):
+        raise HTTPException(401, "Account not found or no longer active")
+    return payload
 
 
 def require_role(min_role: str):
