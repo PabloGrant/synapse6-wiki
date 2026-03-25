@@ -30,7 +30,7 @@ def _save(slug: str, comments: list):
         json.dump(comments, fh, indent=2)
 
 
-@router.get("/{slug}")
+@router.get("/{slug}", dependencies=[Depends(require_role("user"))])
 def get_comments(slug: str):
     return _load(slug)
 

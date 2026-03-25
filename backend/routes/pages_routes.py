@@ -42,7 +42,7 @@ def _latest_file(slug: str) -> Optional[str]:
     return os.path.join(_page_dir(slug), versions[0]["filename"])
 
 
-@router.get("/{slug}")
+@router.get("/{slug}", dependencies=[Depends(require_role("user"))])
 async def get_page(slug: str):
     path = _latest_file(slug)
     if not path:
@@ -58,7 +58,7 @@ async def get_page(slug: str):
     }
 
 
-@router.get("/{slug}/version/{filename}")
+@router.get("/{slug}/version/{filename}", dependencies=[Depends(require_role("user"))])
 async def get_version(slug: str, filename: str):
     path = os.path.join(_page_dir(slug), filename)
     if not os.path.exists(path):

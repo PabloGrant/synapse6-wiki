@@ -41,7 +41,7 @@ def update_settings(body: SettingsBody):
     return {"ok": True}
 
 
-@router.get("/public")
+@router.get("/public")  # intentionally unauthenticated — only returns site name/tagline for login page
 def get_public_settings():
     s = _load()
     return {

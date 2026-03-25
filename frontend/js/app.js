@@ -600,6 +600,12 @@ async function api(method, path, body) {
   };
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(path, opts);
+  if (r.status === 401) {
+    // Session gone or expired — force back to login
+    currentUser = null;
+    showAuthOverlay();
+    throw new Error('Session expired. Please sign in again.');
+  }
   if (!r.ok) {
     let msg = r.statusText;
     try { msg = (await r.json()).detail || msg; } catch {}

@@ -54,7 +54,7 @@ def _enrich(items: list) -> list:
     return out
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_role("user"))])
 def get_nav():
     nav = _load_nav()
     nav["categories"] = _enrich(nav.get("categories", []))
