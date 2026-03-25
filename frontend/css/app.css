@@ -398,12 +398,6 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
   display: inline-flex; align-items: center;
 }
 .icon-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-.signout-btn {
-  background: transparent; border: none; color: var(--subtext);
-  font-size: 12px; cursor: pointer; padding: 4px 6px; border-radius: 4px;
-  transition: all 0.15s; text-decoration: none;
-}
-.signout-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
 
 .close-btn {
   background: transparent; border: none; color: var(--subtext);

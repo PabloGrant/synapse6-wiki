@@ -47,6 +47,10 @@ app.include_router(hypatia_router)
 app.include_router(settings_router)
 
 STATIC_DIR = os.environ.get("STATIC_DIR", "/app/static")
+DATA_VENDOR_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "vendor")
+
+if os.path.exists(DATA_VENDOR_DIR):
+    app.mount("/vendor", StaticFiles(directory=DATA_VENDOR_DIR), name="vendor")
 
 if os.path.exists(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=os.path.join(STATIC_DIR, "static") if os.path.exists(os.path.join(STATIC_DIR, "static")) else STATIC_DIR), name="static")
