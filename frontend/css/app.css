@@ -394,7 +394,8 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .icon-btn {
   background: transparent; border: none; color: var(--subtext);
   font-size: 16px; cursor: pointer; padding: 4px 6px; border-radius: 4px;
-  transition: all 0.15s; line-height: 1;
+  transition: all 0.15s; line-height: 1; text-decoration: none;
+  display: inline-flex; align-items: center;
 }
 .icon-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
 
