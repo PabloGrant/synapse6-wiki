@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Response, Depends
+from fastapi import APIRouter, Request, Response, Depends, HTTPException
 from pydantic import BaseModel
 from auth import (
     create_user, create_user_admin, login, get_current_user, require_role,
@@ -52,10 +52,9 @@ def get_allowed_domain():
     return {"domain": ALLOWED_DOMAIN}
 
 
-@router.post("/register")
-def register(body: RegisterBody):
-    user = create_user(body.username, body.password, body.display_name)
-    return {"ok": True, "user": user}
+@router.post("/register", include_in_schema=False)
+def register():
+    raise HTTPException(403, "Self-registration is disabled. Contact an administrator.")
 
 
 @router.post("/login")

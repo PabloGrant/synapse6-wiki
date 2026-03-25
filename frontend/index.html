@@ -19,23 +19,11 @@
         <div class="auth-sub">Knowledge Base</div>
       </div>
     </div>
-    <div id="auth-tabs">
-      <button class="tab active" onclick="switchTab('login')">Sign In</button>
-      <button class="tab" onclick="switchTab('register')">Request Access</button>
-    </div>
     <form id="login-form" class="auth-form" onsubmit="doLogin(event)">
       <input type="email" id="login-user" placeholder="Email address" required autocomplete="email">
       <input type="password" id="login-pass" placeholder="Password" required autocomplete="current-password">
       <button type="submit" class="btn-primary">Sign In</button>
       <div id="login-error" class="form-error"></div>
-    </form>
-    <form id="register-form" class="auth-form hidden" onsubmit="doRegister(event)">
-      <input type="text" id="reg-name" placeholder="Display Name" required>
-      <input type="email" id="reg-user" placeholder="Email address" required autocomplete="email">
-      <div id="reg-domain-hint" class="form-hint"></div>
-      <input type="password" id="reg-pass" placeholder="Password (min 8 characters)" required autocomplete="new-password">
-      <button type="submit" class="btn-primary">Request Access</button>
-      <div id="reg-msg" class="form-error"></div>
     </form>
   </div>
 </div>
