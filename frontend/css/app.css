@@ -443,6 +443,10 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 }
 .tab.active { background: var(--surface); color: var(--text); font-weight: 600; }
 .tab:hover:not(.active) { color: var(--text); }
+.tab.admin-tab.active { color: #5b9cf6; }
+.tab.admin-tab:hover:not(.active) { color: #5b9cf6; }
+.tab.sa-tab { color: #a78bfa; }
+.tab.sa-tab:hover { color: #c4b5fd; background: rgba(167,139,250,0.08); }
 
 .section-header { padding-bottom: 16px; border-bottom: 1px solid var(--border); margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
 .section-header h2 { font-size: 22px; font-weight: 700; }

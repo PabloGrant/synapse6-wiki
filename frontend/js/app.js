@@ -58,7 +58,6 @@ function showApp() {
   });
 
   if (isAdmin) document.getElementById('admin-btn').style.display = '';
-  if (isSuperAdmin) document.getElementById('superadmin-access-btn').classList.remove('hidden');
 
   loadPublicSettings();
   loadNav();
@@ -368,19 +367,96 @@ function chatKeydown(e) {
 }
 
 // ── ADMIN PANEL ────────────────────────────────────────────────────────────
-function showAdminPanel(tab = 'users') {
+function showAdminPanel() {
   showView('admin');
-  switchAdminTab(tab);
-  loadAdminUsers();
-  populateCategorySelect();
+  const isAdmin = ['admin','superadmin'].includes(currentUser?.role);
+  const isSuperAdmin = currentUser?.role === 'superadmin';
+  ['users','nav'].forEach(id => {
+    document.getElementById(`admin-tab-${id}`).style.display = isAdmin ? '' : 'none';
+  });
+  document.getElementById('admin-tab-sa').style.display = isSuperAdmin ? '' : 'none';
+  // superadmin can create superadmin accounts
+  const createRole = document.getElementById('create-role');
+  if (isSuperAdmin && !createRole.querySelector('[value="superadmin"]')) {
+    const opt = document.createElement('option');
+    opt.value = 'superadmin'; opt.textContent = 'superadmin';
+    createRole.appendChild(opt);
+  }
+  // pre-fill profile
+  document.getElementById('profile-name').value = currentUser?.display_name || '';
+  switchAdminTab('profile');
+  if (isAdmin) loadAdminUsers();
 }
 
 function switchAdminTab(tab) {
-  ['users','nav'].forEach(t => {
+  ['profile','users','nav'].forEach(t => {
     document.getElementById(`admin-tab-${t}`)?.classList.toggle('active', t === tab);
     document.getElementById(`admin-${t}`)?.classList.toggle('hidden', t !== tab);
   });
   if (tab === 'nav') populateCategorySelect();
+  if (tab === 'users') loadAdminUsers();
+}
+
+async function saveProfile(event) {
+  event.preventDefault();
+  const name = document.getElementById('profile-name').value.trim();
+  const msg = document.getElementById('profile-msg');
+  try {
+    await api('PATCH', '/api/auth/me', { display_name: name });
+    currentUser.display_name = name;
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Saved';
+    setTimeout(() => msg.textContent = '', 2000);
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Failed';
+  }
+}
+
+async function changeOwnPassword(event) {
+  event.preventDefault();
+  const msg = document.getElementById('own-pw-msg');
+  const nw = document.getElementById('own-pw-new').value;
+  const conf = document.getElementById('own-pw-confirm').value;
+  msg.textContent = '';
+  if (nw !== conf) { msg.style.color='var(--danger)'; msg.textContent = 'Passwords do not match'; return; }
+  try {
+    await api('PATCH', '/api/auth/me/password', {
+      old_password: document.getElementById('own-pw-current').value,
+      new_password: nw
+    });
+    event.target.reset();
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Password changed';
+    setTimeout(() => msg.textContent = '', 3000);
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Failed';
+  }
+}
+
+async function adminCreateUser(event) {
+  event.preventDefault();
+  const msg = document.getElementById('create-user-msg');
+  msg.textContent = '';
+  const isSA = currentUser?.role === 'superadmin';
+  const endpoint = isSA ? '/api/auth/superadmin/users/create' : '/api/auth/users/create';
+  try {
+    await api('POST', endpoint, {
+      username: document.getElementById('create-email').value,
+      password: document.getElementById('create-pass').value,
+      display_name: document.getElementById('create-name').value,
+      role: document.getElementById('create-role').value,
+    });
+    msg.style.color = 'var(--green)';
+    msg.textContent = `Account created`;
+    event.target.reset();
+    loadAdminUsers();
+    setTimeout(() => msg.textContent = '', 3000);
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Failed';
+  }
 }
 
 async function loadAdminUsers() {

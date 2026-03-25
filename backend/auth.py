@@ -110,6 +110,42 @@ def update_user_role(username: str, role: str, caller_role: str = "admin"):
     _save_users(users)
 
 
+def change_display_name(username: str, display_name: str):
+    users = _load_users()
+    if username not in users:
+        raise HTTPException(404, "User not found")
+    users[username]["display_name"] = display_name.strip() or username
+    _save_users(users)
+
+
+def change_own_password(username: str, old_password: str, new_password: str):
+    if len(new_password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+    users = _load_users()
+    if username not in users:
+        raise HTTPException(404, "User not found")
+    if not bcrypt.checkpw(old_password.encode(), users[username]["password"].encode()):
+        raise HTTPException(401, "Current password is incorrect")
+    users[username]["password"] = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    _save_users(users)
+
+
+def create_user_admin(email: str, password: str, display_name: str, role: str, caller_role: str) -> dict:
+    """Admin creates a pre-approved account."""
+    if role not in ROLES:
+        raise HTTPException(400, "Invalid role")
+    if role == "superadmin" and caller_role != "superadmin":
+        raise HTTPException(403, "Only superadmin can create superadmin accounts")
+    # create_user raises if email invalid/taken
+    create_user(email, password, display_name)
+    users = _load_users()
+    key = email.strip().lower()
+    users[key]["approved"] = True
+    users[key]["role"] = role
+    _save_users(users)
+    return _strip_password(users[key])
+
+
 def change_password(username: str, new_password: str, caller_role: str = "admin"):
     if len(new_password) < 8:
         raise HTTPException(400, "Password must be at least 8 characters")

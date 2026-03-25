@@ -145,17 +145,48 @@
 
     <!-- ADMIN PANEL -->
     <div id="admin-view" class="hidden">
-      <div class="section-header">
-        <h2>⚙ Administration</h2>
-        <button id="superadmin-access-btn" class="btn-ghost hidden" onclick="showView('superadmin');loadSAUsers()" title="Super Admin">🔑 Super Admin</button>
-      </div>
       <div class="admin-tabs">
-        <button class="tab active" id="admin-tab-users" onclick="switchAdminTab('users')">Users</button>
-        <button class="tab" id="admin-tab-nav" onclick="switchAdminTab('nav')">Navigation</button>
+        <button class="tab active" id="admin-tab-profile" onclick="switchAdminTab('profile')">Profile</button>
+        <button class="tab admin-tab" id="admin-tab-users" onclick="switchAdminTab('users')" style="display:none">Users</button>
+        <button class="tab admin-tab" id="admin-tab-nav" onclick="switchAdminTab('nav')" style="display:none">Navigation</button>
+        <button class="tab sa-tab" id="admin-tab-sa" onclick="showView('superadmin');loadSAUsers()" style="display:none">Super Admin</button>
+      </div>
+
+      <!-- PROFILE TAB -->
+      <div id="admin-profile" class="admin-tab-content">
+        <div class="admin-section-title">Display Name</div>
+        <form onsubmit="saveProfile(event)" class="inline-form" style="margin-bottom:28px">
+          <input type="text" id="profile-name" placeholder="Display name">
+          <button type="submit" class="btn-primary">Save</button>
+          <span id="profile-msg" class="form-hint" style="margin-left:8px"></span>
+        </form>
+        <div class="admin-section-title">Change Password</div>
+        <form onsubmit="changeOwnPassword(event)" class="col-form" style="max-width:360px">
+          <input type="password" id="own-pw-current" placeholder="Current password" required autocomplete="current-password">
+          <input type="password" id="own-pw-new" placeholder="New password (min 8 characters)" required autocomplete="new-password">
+          <input type="password" id="own-pw-confirm" placeholder="Confirm new password" required>
+          <div id="own-pw-msg" class="form-error"></div>
+          <button type="submit" class="btn-primary" style="width:fit-content">Change Password</button>
+        </form>
       </div>
 
       <!-- USERS TAB -->
-      <div id="admin-users" class="admin-tab-content">
+      <div id="admin-users" class="admin-tab-content hidden">
+        <div class="admin-section-title">Create Account</div>
+        <form onsubmit="adminCreateUser(event)" class="inline-form col" style="max-width:400px;margin-bottom:28px">
+          <input type="text" id="create-name" placeholder="Display name">
+          <input type="email" id="create-email" placeholder="Email address (@synapse6.ai)">
+          <input type="password" id="create-pass" placeholder="Temporary password" autocomplete="new-password">
+          <select id="create-role">
+            <option value="user">user</option>
+            <option value="editor">editor</option>
+            <option value="admin">admin</option>
+          </select>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button type="submit" class="btn-primary">Create Account</button>
+            <span id="create-user-msg" class="form-error"></span>
+          </div>
+        </form>
         <div class="admin-section-title">Pending Approval</div>
         <div id="pending-users"></div>
         <div class="admin-section-title" style="margin-top:24px">All Users</div>
@@ -181,7 +212,6 @@
 
     <!-- SUPER ADMIN PANEL — server-enforced, only rendered for superadmin role -->
     <div id="superadmin-view" class="hidden">
-      <div class="section-header"><h2>🔑 Super Admin</h2></div>
       <div class="admin-tabs">
         <button class="tab active" id="sa-tab-users" onclick="switchSATab('users')">All Users</button>
         <button class="tab" id="sa-tab-site" onclick="switchSATab('site')">Site Settings</button>

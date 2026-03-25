@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Request, Response, Depends
 from pydantic import BaseModel
 from auth import (
-    create_user, login, get_current_user, require_role,
+    create_user, create_user_admin, login, get_current_user, require_role,
     approve_user, deny_user, update_user_role, get_all_users,
-    change_password, ALLOWED_DOMAIN
+    change_password, change_own_password, change_display_name, ALLOWED_DOMAIN
 )
 
 router = APIRouter(prefix="/api/auth")
@@ -26,6 +26,22 @@ class RoleBody(BaseModel):
 
 class PasswordBody(BaseModel):
     password: str
+
+
+class MeProfileBody(BaseModel):
+    display_name: str
+
+
+class MePasswordBody(BaseModel):
+    old_password: str
+    new_password: str
+
+
+class AdminCreateBody(BaseModel):
+    username: str
+    password: str
+    display_name: str = ""
+    role: str = "user"
 
 
 # ── Public ────────────────────────────────────────────────────────────────
@@ -64,7 +80,25 @@ def me(user=Depends(get_current_user)):
     return user
 
 
+@router.patch("/me")
+def update_me(body: MeProfileBody, user=Depends(get_current_user)):
+    change_display_name(user["sub"], body.display_name)
+    return {"ok": True}
+
+
+@router.patch("/me/password")
+def change_me_password(body: MePasswordBody, user=Depends(get_current_user)):
+    change_own_password(user["sub"], body.old_password, body.new_password)
+    return {"ok": True}
+
+
 # ── Admin (excludes superadmins from results) ─────────────────────────────
+
+@router.post("/users/create", dependencies=[Depends(require_role("admin"))])
+def admin_create_user(body: AdminCreateBody, caller=Depends(require_role("admin"))):
+    user = create_user_admin(body.username, body.password, body.display_name, body.role, caller["role"])
+    return {"ok": True, "user": user}
+
 
 @router.get("/users", dependencies=[Depends(require_role("admin"))])
 def list_users():
@@ -97,6 +131,12 @@ def set_password(username: str, body: PasswordBody, caller=Depends(require_role(
 
 
 # ── Superadmin only ───────────────────────────────────────────────────────
+
+@router.post("/superadmin/users/create", dependencies=[Depends(require_role("superadmin"))])
+def superadmin_create_user(body: AdminCreateBody):
+    user = create_user_admin(body.username, body.password, body.display_name, body.role, "superadmin")
+    return {"ok": True, "user": user}
+
 
 @router.get("/superadmin/users", dependencies=[Depends(require_role("superadmin"))])
 def list_all_users_superadmin():
