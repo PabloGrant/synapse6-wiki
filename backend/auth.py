@@ -13,6 +13,7 @@ JWT_ALGO = "HS256"
 JWT_TTL = 60 * 60 * 24 * 7  # 7 days
 
 ROLES = ["user", "editor", "admin", "superadmin"]
+ALLOWED_DOMAIN = os.environ.get("ALLOWED_EMAIL_DOMAIN", "synapse6.ai")
 
 
 def _load_users() -> dict:
@@ -28,23 +29,36 @@ def _save_users(users: dict):
         json.dump(users, f, indent=2)
 
 
-def get_all_users() -> list:
+def _strip_password(u: dict) -> dict:
+    return {k: v for k, v in u.items() if k != "password"}
+
+
+def get_all_users(include_superadmin: bool = False) -> list:
     users = _load_users()
     return [
-        {k: v for k, v in u.items() if k != "password"}
+        _strip_password(u)
         for u in users.values()
+        if include_superadmin or u.get("role") != "superadmin"
     ]
 
 
-def create_user(username: str, password: str, display_name: str = "") -> dict:
+def create_user(email: str, password: str, display_name: str = "") -> dict:
+    # Enforce email domain
+    email = email.strip().lower()
+    if not email.endswith(f"@{ALLOWED_DOMAIN}"):
+        raise HTTPException(400, f"Registration requires a @{ALLOWED_DOMAIN} email address")
+    if "@" not in email or "." not in email.split("@")[-1]:
+        raise HTTPException(400, "Invalid email address")
+
     users = _load_users()
-    if username in users:
-        raise HTTPException(400, "Username already exists")
+    if email in users:
+        raise HTTPException(400, "An account with this email already exists")
+
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     user = {
         "id": str(uuid.uuid4()),
-        "username": username,
-        "display_name": display_name or username,
+        "username": email,
+        "display_name": display_name or email,
         "password": hashed,
         "role": "user",
         "approved": False,
@@ -54,39 +68,62 @@ def create_user(username: str, password: str, display_name: str = "") -> dict:
     if not users:
         user["role"] = "superadmin"
         user["approved"] = True
-    users[username] = user
+
+    users[email] = user
     _save_users(users)
-    return {k: v for k, v in user.items() if k != "password"}
+    return _strip_password(user)
 
 
-def approve_user(username: str, role: str = "user"):
+def approve_user(username: str, role: str = "user", caller_role: str = "admin"):
     users = _load_users()
     if username not in users:
         raise HTTPException(404, "User not found")
+    target_role = users[username].get("role")
+    if target_role == "superadmin" and caller_role != "superadmin":
+        raise HTTPException(403, "Cannot modify a superadmin account")
     users[username]["approved"] = True
     users[username]["role"] = role
     _save_users(users)
 
 
-def deny_user(username: str):
+def deny_user(username: str, caller_role: str = "admin"):
     users = _load_users()
     if username not in users:
         raise HTTPException(404, "User not found")
+    if users[username].get("role") == "superadmin" and caller_role != "superadmin":
+        raise HTTPException(403, "Cannot remove a superadmin account")
     del users[username]
     _save_users(users)
 
 
-def update_user_role(username: str, role: str):
+def update_user_role(username: str, role: str, caller_role: str = "admin"):
     if role not in ROLES:
         raise HTTPException(400, "Invalid role")
+    if role == "superadmin" and caller_role != "superadmin":
+        raise HTTPException(403, "Only a superadmin can grant superadmin role")
     users = _load_users()
     if username not in users:
         raise HTTPException(404, "User not found")
+    if users[username].get("role") == "superadmin" and caller_role != "superadmin":
+        raise HTTPException(403, "Cannot modify a superadmin account")
     users[username]["role"] = role
     _save_users(users)
 
 
+def change_password(username: str, new_password: str, caller_role: str = "admin"):
+    if len(new_password) < 8:
+        raise HTTPException(400, "Password must be at least 8 characters")
+    users = _load_users()
+    if username not in users:
+        raise HTTPException(404, "User not found")
+    if users[username].get("role") == "superadmin" and caller_role != "superadmin":
+        raise HTTPException(403, "Cannot modify a superadmin account")
+    users[username]["password"] = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    _save_users(users)
+
+
 def login(username: str, password: str) -> str:
+    username = username.strip().lower()
     users = _load_users()
     user = users.get(username)
     if not user:

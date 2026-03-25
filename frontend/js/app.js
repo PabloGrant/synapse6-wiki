@@ -3,10 +3,17 @@ let currentUser = null;
 let currentSlug = null;
 let chatHistory = [];
 let navData = null;
+let pwTargetUser = null;   // username being changed in the modal
+let pwIsSuperAdmin = false; // which endpoint to call
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   marked.setOptions({ gfm: true, breaks: true });
+  // Load allowed domain hint for registration form
+  try {
+    const d = await api('GET', '/api/auth/domain');
+    document.getElementById('reg-domain-hint').textContent = `Requires a @${d.domain} email address`;
+  } catch {}
   await checkAuth();
   document.body.classList.remove('loading');
 });
@@ -24,19 +31,17 @@ async function checkAuth() {
 function showApp() {
   document.getElementById('auth-overlay').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
-  document.getElementById('user-display').textContent = currentUser.display_name;
+  document.getElementById('user-display').textContent = currentUser.sub;  // email
   document.getElementById('user-role-badge').textContent = currentUser.role;
 
-  const isEditor = ['editor','admin','superadmin'].includes(currentUser.role);
-  const isAdmin  = ['admin','superadmin'].includes(currentUser.role);
+  const isEditor     = ['editor','admin','superadmin'].includes(currentUser.role);
+  const isAdmin      = ['admin','superadmin'].includes(currentUser.role);
   const isSuperAdmin = currentUser.role === 'superadmin';
 
   document.querySelectorAll('.editor-only').forEach(el => {
     if (isEditor) el.classList.remove('hidden');
   });
-  document.querySelectorAll('.superadmin-only').forEach(el => {
-    if (isSuperAdmin) el.classList.remove('hidden');
-  });
+
   if (isAdmin) document.getElementById('admin-btn').style.display = '';
 
   loadPublicSettings();
@@ -72,7 +77,7 @@ async function doLogin(e) {
   err.textContent = '';
   try {
     await api('POST', '/api/auth/login', {
-      username: document.getElementById('login-user').value,
+      username: document.getElementById('login-user').value.trim().toLowerCase(),
       password: document.getElementById('login-pass').value,
     });
     await checkAuth();
@@ -87,7 +92,7 @@ async function doRegister(e) {
   msg.textContent = '';
   try {
     await api('POST', '/api/auth/register', {
-      username: document.getElementById('reg-user').value,
+      username: document.getElementById('reg-user').value.trim().toLowerCase(),
       password: document.getElementById('reg-pass').value,
       display_name: document.getElementById('reg-name').value,
     });
@@ -118,7 +123,6 @@ function renderNav(data) {
   const tree = document.getElementById('nav-tree');
   let html = '';
 
-  // Hypatia always first
   html += `<div class="nav-link hypatia" onclick="showHypatia()">🧠 Hypatia</div>`;
 
   const cats = data.categories || [];
@@ -140,9 +144,6 @@ function filterNav(q) {
   document.querySelectorAll('.nav-link').forEach(el => {
     el.style.display = (!q || el.textContent.toLowerCase().includes(q)) ? '' : 'none';
   });
-  document.querySelectorAll('.nav-category').forEach(el => {
-    el.style.display = '';
-  });
 }
 
 function setActiveNav(slug) {
@@ -157,13 +158,11 @@ async function loadPage(slug, cat, page, sub) {
   showView('page');
   setActiveNav(slug);
 
-  // Breadcrumb
   let bc = `${esc(cat)} › <span>${esc(page)}</span>`;
   if (sub) bc += ` › <span>${esc(sub)}</span>`;
   document.getElementById('page-breadcrumb').innerHTML = bc;
   document.getElementById('edit-breadcrumb').innerHTML = bc;
 
-  // Hide history
   document.getElementById('history-panel').classList.add('hidden');
 
   const content = document.getElementById('page-content');
@@ -171,16 +170,11 @@ async function loadPage(slug, cat, page, sub) {
 
   try {
     const data = await api('GET', `/api/pages/${slug}`);
-    content.innerHTML = marked.parse(data.content || '*(No content yet)*');
-
-    // History
+    content.innerHTML = marked.parse(data.content || '');
     renderHistory(slug, data.versions || []);
-
-    // Show edit/history buttons for editors
     const isEditor = ['editor','admin','superadmin'].includes(currentUser?.role);
     document.getElementById('edit-btn').classList.toggle('hidden', !isEditor);
     document.getElementById('history-btn').classList.toggle('hidden', !isEditor || !data.versions?.length);
-
     loadComments(slug);
   } catch (ex) {
     content.innerHTML = `<p style="color:var(--subtext)">${ex.message === 'Page not found' ? '*(No content yet — click Edit to start writing)*' : 'Error loading page'}</p>`;
@@ -207,15 +201,11 @@ function toggleHistory() {
 async function rollback(slug, filename) {
   if (!confirm('Restore this version? It will become the current version.')) return;
   await api('POST', `/api/pages/${slug}/rollback/${filename}`);
-  loadPage(slug, ...currentBreadcrumb());
+  loadPage(slug, ...currentBreadcrumbParts());
 }
 
 // ── EDITOR ─────────────────────────────────────────────────────────────────
-let editingOriginal = '';
-
 function enterEditMode() {
-  const content = document.getElementById('page-content').innerHTML;
-  // Load the raw markdown from last fetch — we re-fetch to be safe
   api('GET', `/api/pages/${currentSlug}`).then(data => {
     document.getElementById('editor').value = data.content || '';
     livePreview();
@@ -225,33 +215,25 @@ function enterEditMode() {
   showView('edit');
 }
 
-function cancelEdit() {
-  showView('page');
-}
+function cancelEdit() { showView('page'); }
 
 function livePreview() {
-  const md = document.getElementById('editor').value;
-  document.getElementById('editor-preview').innerHTML = marked.parse(md);
+  document.getElementById('editor-preview').innerHTML = marked.parse(document.getElementById('editor').value);
 }
 
 async function savePage() {
   const content = document.getElementById('editor').value;
   await api('PUT', `/api/pages/${currentSlug}`, { content });
   showView('page');
-  loadPage(currentSlug, ...currentBreadcrumb());
+  loadPage(currentSlug, ...currentBreadcrumbParts());
 }
 
-function currentBreadcrumb() {
-  // Re-parse breadcrumb for reload
-  const bc = document.getElementById('page-breadcrumb').textContent;
-  const parts = bc.split('›').map(s => s.trim());
-  return parts;
+function currentBreadcrumbParts() {
+  return document.getElementById('page-breadcrumb').textContent.split('›').map(s => s.trim());
 }
 
 // ── UPLOAD ─────────────────────────────────────────────────────────────────
-function insertUpload() {
-  document.getElementById('upload-input').click();
-}
+function insertUpload() { document.getElementById('upload-input').click(); }
 
 async function handleUpload(input) {
   const file = input.files[0];
@@ -263,12 +245,9 @@ async function handleUpload(input) {
     if (!r.ok) throw new Error(await r.text());
     const data = await r.json();
     const editor = document.getElementById('editor');
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    let md = '';
-    if (isImage) md = `\n![${file.name}](${data.url})\n`;
-    else if (isVideo) md = `\n<video controls src="${data.url}"></video>\n`;
-    else md = `\n[${file.name}](${data.url})\n`;
+    let md = file.type.startsWith('image/') ? `\n![${file.name}](${data.url})\n`
+           : file.type.startsWith('video/') ? `\n<video controls src="${data.url}"></video>\n`
+           : `\n[${file.name}](${data.url})\n`;
     const pos = editor.selectionStart;
     editor.value = editor.value.slice(0, pos) + md + editor.value.slice(pos);
     livePreview();
@@ -325,7 +304,7 @@ function showHypatia() {
   showView('hypatia');
   setActiveNav('__hypatia__');
   if (!chatHistory.length) {
-    appendChatMsg('assistant', 'Hi — I\'m Hypatia. Ask me anything about Synapse6, the product, the team, or any topic in the knowledge base.');
+    appendChatMsg('assistant', "Hi — I'm Hypatia. Ask me anything about Synapse6, the product, the team, or any topic in the knowledge base.");
   }
 }
 
@@ -334,14 +313,11 @@ async function sendChat(e) {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
   if (!text) return;
-
   appendChatMsg('user', text);
   chatHistory.push({ role: 'user', content: text });
   input.value = '';
-
   const thinking = appendChatMsg('assistant', '…', true);
   document.getElementById('chat-send').disabled = true;
-
   try {
     const r = await api('POST', '/api/hypatia/chat', { messages: chatHistory });
     thinking.remove();
@@ -356,12 +332,10 @@ async function sendChat(e) {
 
 function appendChatMsg(role, text, thinking = false) {
   const msgs = document.getElementById('chat-messages');
-  const initials = role === 'user' ? (currentUser?.display_name?.[0] || 'U').toUpperCase() : 'H';
+  const initials = role === 'user' ? (currentUser?.sub?.[0] || 'U').toUpperCase() : 'H';
   const content = thinking
     ? `<span class="chat-thinking">${esc(text)}</span>`
-    : role === 'assistant'
-      ? marked.parse(text)
-      : `<p>${esc(text)}</p>`;
+    : role === 'assistant' ? marked.parse(text) : `<p>${esc(text)}</p>`;
   const div = document.createElement('div');
   div.className = `chat-msg ${role}`;
   div.innerHTML = `<div class="chat-avatar">${initials}</div><div class="chat-bubble">${content}</div>`;
@@ -377,97 +351,200 @@ function chatKeydown(e) {
   }
 }
 
-function showHypatiaSettings() {
-  showAdminPanel('site');
-  api('GET', '/api/hypatia/settings').then(s => {
-    document.getElementById('system-prompt-input').value = s.system_prompt;
-  });
-}
-
-async function saveSystemPrompt(e) {
-  e.preventDefault();
-  await api('PUT', '/api/hypatia/settings', {
-    system_prompt: document.getElementById('system-prompt-input').value
-  });
-  alert('System prompt saved.');
-}
-
-// ── ADMIN ──────────────────────────────────────────────────────────────────
+// ── ADMIN PANEL ────────────────────────────────────────────────────────────
 function showAdminPanel(tab = 'users') {
-  showView('admin');
-  switchAdminTab(tab);
-  loadAdminUsers();
-  populateCategorySelect();
+  const isSuperAdmin = currentUser?.role === 'superadmin';
+  if (isSuperAdmin) {
+    showView('superadmin');
+    switchSATab('users');
+    loadSAUsers();
+  } else {
+    showView('admin');
+    switchAdminTab(tab);
+    loadAdminUsers();
+    populateCategorySelect();
+  }
 }
 
 function switchAdminTab(tab) {
-  document.querySelectorAll('.admin-tabs .tab').forEach((t, i) => {
-    const tabs = ['users','nav','site'];
-    t.classList.toggle('active', tabs[i] === tab);
-  });
-  ['users','nav','site'].forEach(t => {
-    document.getElementById(`admin-${t}`).classList.toggle('hidden', t !== tab);
+  ['users','nav'].forEach(t => {
+    document.getElementById(`admin-tab-${t}`)?.classList.toggle('active', t === tab);
+    document.getElementById(`admin-${t}`)?.classList.toggle('hidden', t !== tab);
   });
   if (tab === 'nav') populateCategorySelect();
-  if (tab === 'site') loadSiteSettings();
 }
 
 async function loadAdminUsers() {
   try {
     const users = await api('GET', '/api/auth/users');
     const pending = users.filter(u => !u.approved);
-    const all = users.filter(u => u.approved);
-
-    document.getElementById('pending-users').innerHTML = pending.length
-      ? pending.map(u => `
-        <div class="user-row">
-          <span class="uname">${esc(u.username)}</span>
-          <span class="udisp">${esc(u.display_name)}</span>
-          <select id="role-${u.username}">
-            <option value="user">user</option>
-            <option value="editor">editor</option>
-            <option value="admin">admin</option>
-          </select>
-          <button class="btn-approve" onclick="approveUser('${u.username}')">Approve</button>
-          <button class="btn-danger" onclick="denyUser('${u.username}')">Deny</button>
-        </div>`).join('')
-      : '<div style="color:var(--subtext);font-size:13px">No pending requests</div>';
-
-    document.getElementById('all-users').innerHTML = all.map(u => `
-      <div class="user-row">
-        <span class="uname">${esc(u.username)}</span>
-        <span class="udisp">${esc(u.display_name)}</span>
-        <select onchange="setRole('${u.username}',this.value)">
-          ${['user','editor','admin','superadmin'].map(r =>
-            `<option value="${r}" ${u.role===r?'selected':''}>${r}</option>`
-          ).join('')}
-        </select>
-        ${u.username !== currentUser.sub
-          ? `<button class="btn-danger" onclick="denyUser('${u.username}')">Remove</button>`
-          : '<span style="font-size:11px;color:var(--subtext)">you</span>'}
-      </div>`).join('');
+    const approved = users.filter(u => u.approved);
+    renderUserList('pending-users', pending, false, false);
+    renderUserList('all-users', approved, true, false);
   } catch {}
 }
 
-async function approveUser(username) {
-  const role = document.getElementById(`role-${username}`).value;
-  await api('POST', `/api/auth/users/${username}/approve`, { role });
-  loadAdminUsers();
+function renderUserList(containerId, users, showRoleEdit, isSuperAdmin) {
+  const el = document.getElementById(containerId);
+  const prefix = isSuperAdmin ? 'sa' : 'admin';
+  const apiPrefix = isSuperAdmin ? '/api/auth/superadmin' : '/api/auth';
+  const isPending = containerId.includes('pending');
+
+  if (!users.length) {
+    el.innerHTML = `<div style="color:var(--subtext);font-size:13px">${isPending ? 'No pending requests' : 'No users'}</div>`;
+    return;
+  }
+
+  el.innerHTML = users.map(u => `
+    <div class="user-row">
+      <span class="uname">${esc(u.username)}</span>
+      <span class="udisp">${esc(u.display_name)}</span>
+      ${isPending ? `
+        <select id="${prefix}-role-${u.username.replace('@','_')}">
+          <option value="user">user</option>
+          <option value="editor">editor</option>
+          <option value="admin">admin</option>
+          ${isSuperAdmin ? '<option value="superadmin">superadmin</option>' : ''}
+        </select>
+        <button class="btn-approve" onclick="approveUser('${esc(u.username)}',${isSuperAdmin})">Approve</button>
+        <button class="btn-danger" onclick="removeUser('${esc(u.username)}',${isSuperAdmin})">Deny</button>
+      ` : `
+        ${showRoleEdit ? `
+          <select onchange="setRole('${esc(u.username)}',this.value,${isSuperAdmin})">
+            ${['user','editor','admin'].map(r => `<option value="${r}" ${u.role===r?'selected':''}>${r}</option>`).join('')}
+            ${isSuperAdmin ? `<option value="superadmin" ${u.role==='superadmin'?'selected':''}>superadmin</option>` : ''}
+          </select>
+        ` : ''}
+        <button class="btn-ghost" style="font-size:12px;padding:5px 10px" onclick="openPasswordModal('${esc(u.username)}',${isSuperAdmin})">🔑 Password</button>
+        ${u.username !== currentUser?.sub
+          ? `<button class="btn-danger" onclick="removeUser('${esc(u.username)}',${isSuperAdmin})">Remove</button>`
+          : '<span style="font-size:11px;color:var(--subtext)">you</span>'}
+      `}
+    </div>
+  `).join('');
 }
 
-async function denyUser(username) {
+async function approveUser(username, isSuperAdmin = false) {
+  const safeKey = username.replace('@','_');
+  const prefix = isSuperAdmin ? 'sa' : 'admin';
+  const roleEl = document.getElementById(`${prefix}-role-${safeKey}`);
+  const role = roleEl ? roleEl.value : 'user';
+  const endpoint = isSuperAdmin ? `/api/auth/superadmin/users/${encodeURIComponent(username)}/approve`
+                                : `/api/auth/users/${encodeURIComponent(username)}/approve`;
+  await api('POST', endpoint, { role });
+  isSuperAdmin ? loadSAUsers() : loadAdminUsers();
+}
+
+async function removeUser(username, isSuperAdmin = false) {
   if (!confirm(`Remove user "${username}"?`)) return;
-  await api('DELETE', `/api/auth/users/${username}`);
-  loadAdminUsers();
+  const endpoint = isSuperAdmin ? `/api/auth/superadmin/users/${encodeURIComponent(username)}`
+                                : `/api/auth/users/${encodeURIComponent(username)}`;
+  await api('DELETE', endpoint);
+  isSuperAdmin ? loadSAUsers() : loadAdminUsers();
 }
 
-async function setRole(username, role) {
-  await api('PATCH', `/api/auth/users/${username}/role`, { role });
+async function setRole(username, role, isSuperAdmin = false) {
+  const endpoint = isSuperAdmin ? `/api/auth/superadmin/users/${encodeURIComponent(username)}/role`
+                                : `/api/auth/users/${encodeURIComponent(username)}/role`;
+  await api('PATCH', endpoint, { role });
 }
 
+// ── SUPER ADMIN ────────────────────────────────────────────────────────────
+// NOTE: All SA endpoints are protected server-side with require_role("superadmin").
+// The view is only shown if role === 'superadmin', but the protection is in the API.
+
+function switchSATab(tab) {
+  ['users','site','hypatia'].forEach(t => {
+    document.getElementById(`sa-tab-${t}`)?.classList.toggle('active', t === tab);
+    document.getElementById(`sa-${t}`)?.classList.toggle('hidden', t !== tab);
+  });
+  if (tab === 'site') loadSiteSettings();
+  if (tab === 'hypatia') loadHypatiaSettings();
+}
+
+async function loadSAUsers() {
+  try {
+    const users = await api('GET', '/api/auth/superadmin/users');
+    const pending = users.filter(u => !u.approved);
+    const approved = users.filter(u => u.approved);
+    renderUserList('sa-pending-users', pending, false, true);
+    renderUserList('sa-all-users', approved, true, true);
+  } catch {}
+}
+
+async function loadSiteSettings() {
+  try {
+    const s = await api('GET', '/api/settings');
+    document.getElementById('site-name-input').value = s.site_name || '';
+    document.getElementById('site-tagline-input').value = s.site_tagline || '';
+  } catch {}
+}
+
+async function saveSiteSettings(e) {
+  e.preventDefault();
+  await api('PUT', '/api/settings', {
+    site_name: document.getElementById('site-name-input').value,
+    site_tagline: document.getElementById('site-tagline-input').value,
+  });
+  loadPublicSettings();
+  alert('Site settings saved.');
+}
+
+async function loadHypatiaSettings() {
+  try {
+    const s = await api('GET', '/api/hypatia/settings');
+    document.getElementById('system-prompt-input').value = s.system_prompt || '';
+  } catch {}
+}
+
+async function saveSystemPrompt(e) {
+  e.preventDefault();
+  await api('PUT', '/api/hypatia/settings', {
+    system_prompt: document.getElementById('system-prompt-input').value,
+  });
+  alert('System prompt saved.');
+}
+
+// ── PASSWORD MODAL ─────────────────────────────────────────────────────────
+function openPasswordModal(username, isSuperAdmin = false) {
+  pwTargetUser = username;
+  pwIsSuperAdmin = isSuperAdmin;
+  document.getElementById('pw-modal-email').textContent = username;
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
+  document.getElementById('pw-error').textContent = '';
+  document.getElementById('pw-modal').classList.remove('hidden');
+}
+
+function closePasswordModal() {
+  document.getElementById('pw-modal').classList.add('hidden');
+  pwTargetUser = null;
+}
+
+async function submitPasswordChange(e) {
+  e.preventDefault();
+  const pw = document.getElementById('pw-new').value;
+  const confirm = document.getElementById('pw-confirm').value;
+  const err = document.getElementById('pw-error');
+  err.textContent = '';
+  if (pw !== confirm) { err.textContent = 'Passwords do not match'; return; }
+  if (pw.length < 8) { err.textContent = 'Password must be at least 8 characters'; return; }
+  try {
+    const endpoint = pwIsSuperAdmin
+      ? `/api/auth/superadmin/users/${encodeURIComponent(pwTargetUser)}/password`
+      : `/api/auth/users/${encodeURIComponent(pwTargetUser)}/password`;
+    await api('PATCH', endpoint, { password: pw });
+    closePasswordModal();
+  } catch (ex) {
+    err.textContent = ex.message || 'Failed to update password';
+  }
+}
+
+// ── NAV ADMIN ──────────────────────────────────────────────────────────────
 function populateCategorySelect() {
   if (!navData) return;
   const catSel = document.getElementById('new-page-cat');
+  if (!catSel) return;
   catSel.innerHTML = '<option value="">Select category…</option>' +
     (navData.categories || []).map(c =>
       `<option value="${c.slug}">${esc(c.display_name||c.name)}</option>`
@@ -477,6 +554,7 @@ function populateCategorySelect() {
 
 function populateParentSelect(catSlug) {
   const sel = document.getElementById('new-page-parent');
+  if (!sel) return;
   const cat = (navData?.categories || []).find(c => c.slug === catSlug);
   sel.innerHTML = '<option value="">Top-level page (no parent)</option>' +
     (cat?.pages || []).map(p =>
@@ -500,36 +578,15 @@ async function addPage(e) {
   const cat = document.getElementById('new-page-cat').value;
   const parent = document.getElementById('new-page-parent').value;
   if (!name || !cat) return;
-  await api('POST', '/api/nav/page', {
-    name,
-    category_slug: cat,
-    parent_slug: parent || null,
-  });
+  await api('POST', '/api/nav/page', { name, category_slug: cat, parent_slug: parent || null });
   document.getElementById('new-page-name').value = '';
   await loadNav();
   populateCategorySelect();
 }
 
-async function loadSiteSettings() {
-  try {
-    const s = await api('GET', '/api/settings');
-    document.getElementById('site-name-input').value = s.site_name || '';
-    document.getElementById('site-tagline-input').value = s.site_tagline || '';
-  } catch {}
-}
-
-async function saveSiteSettings(e) {
-  e.preventDefault();
-  await api('PUT', '/api/settings', {
-    site_name: document.getElementById('site-name-input').value,
-    site_tagline: document.getElementById('site-tagline-input').value,
-  });
-  loadPublicSettings();
-}
-
 // ── VIEW SWITCHER ──────────────────────────────────────────────────────────
 function showView(view) {
-  ['page','edit','hypatia','admin'].forEach(v => {
+  ['page','edit','hypatia','admin','superadmin'].forEach(v => {
     document.getElementById(`${v}-view`).classList.toggle('hidden', v !== view);
   });
 }

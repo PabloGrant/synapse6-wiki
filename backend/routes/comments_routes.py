@@ -46,8 +46,7 @@ def add_comment(slug: str, body: CommentBody, user=Depends(get_current_user)):
     comments = _load(slug)
     comments.append({
         "id": str(uuid.uuid4()),
-        "author": user["display_name"],
-        "username": user["sub"],
+        "author": user["sub"],   # email address
         "text": body.text.strip(),
         "created_at": int(time.time()),
     })

@@ -416,9 +416,32 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 
 .hidden { display: none !important; }
 
-/* Visibility classes for roles */
-.editor-only { }
-.superadmin-only { }
+.form-hint {
+  font-size: 11px;
+  color: var(--green-light);
+  margin-top: -4px;
+  min-height: 14px;
+}
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px 32px;
+  width: 380px;
+}
+.modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
 
 @media (max-width: 780px) {
   #editor-wrap { flex-direction: column; height: auto; }
