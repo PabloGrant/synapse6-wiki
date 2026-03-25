@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Synapse6 Wiki</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="/vendor/lucide.min.js"></script>
 <link rel="stylesheet" href="/static/css/app.css">
 </head>
 <body class="loading">
@@ -68,8 +67,8 @@
         <span class="user-role-badge" id="user-role-badge"></span>
       </div>
       <div class="sidebar-actions">
-        <button class="icon-btn" onclick="showAdminPanel()" id="admin-btn" title="Admin" style="display:none"><i data-lucide="settings" width="16" height="16"></i></button>
-        <a href="/signout" class="icon-btn" title="Sign out"><i data-lucide="log-out" width="16" height="16"></i></a>
+        <button class="icon-btn" onclick="showAdminPanel()" id="admin-btn" title="Admin" style="display:none"><img src="/vendor/icons/settings.svg" width="16" height="16" alt="Admin"></button>
+        <a href="/signout" class="icon-btn" title="Sign out"><img src="/vendor/icons/log-out.svg" width="16" height="16" alt="Sign out"></a>
       </div>
     </div>
   </aside>
@@ -82,8 +81,8 @@
       <div id="page-header">
         <div id="page-breadcrumb"></div>
         <div id="page-actions">
-          <button class="btn-ghost editor-only hidden" id="edit-btn" onclick="enterEditMode()"><i data-lucide="pencil" width="14" height="14"></i> Edit</button>
-          <button class="btn-ghost editor-only hidden" id="history-btn" onclick="toggleHistory()"><i data-lucide="history" width="14" height="14"></i> History</button>
+          <button class="btn-ghost editor-only hidden" id="edit-btn" onclick="enterEditMode()"><img src="/vendor/icons/pencil.svg" width="14" height="14" alt=""> Edit</button>
+          <button class="btn-ghost editor-only hidden" id="history-btn" onclick="toggleHistory()"><img src="/vendor/icons/history.svg" width="14" height="14" alt=""> History</button>
         </div>
       </div>
 
@@ -111,7 +110,7 @@
       <div id="edit-header">
         <div id="edit-breadcrumb"></div>
         <div id="edit-actions">
-          <button class="btn-ghost" onclick="insertUpload()"><i data-lucide="paperclip" width="14" height="14"></i> Upload</button>
+          <button class="btn-ghost" onclick="insertUpload()"><img src="/vendor/icons/paperclip.svg" width="14" height="14" alt=""> Upload</button>
           <button class="btn-ghost" onclick="cancelEdit()">Cancel</button>
           <button class="btn-primary" onclick="savePage()">Save</button>
         </div>

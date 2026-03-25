@@ -8,7 +8,6 @@ let pwIsSuperAdmin = false; // which endpoint to call
 
 // ── INIT ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  if (window.lucide) lucide.createIcons();
   marked.setOptions({ gfm: true, breaks: true });
   // Load allowed domain hint for registration form
   try {
@@ -48,7 +47,6 @@ function showApp() {
 
   loadPublicSettings();
   loadNav();
-  if (window.lucide) lucide.createIcons();
 }
 
 function showAuthOverlay() {
