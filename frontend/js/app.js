@@ -668,7 +668,7 @@ async function addPage(e) {
 
 // ── VIEW SWITCHER ──────────────────────────────────────────────────────────
 function showView(view) {
-  ['page','edit','hypatia','admin','superadmin'].forEach(v => {
+  ['page','edit','hypatia','admin'].forEach(v => {
     document.getElementById(`${v}-view`).classList.toggle('hidden', v !== view);
   });
 }
