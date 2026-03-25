@@ -620,6 +620,153 @@ async function loadHypatiaSettings() {
     const s = await api('GET', '/api/hypatia/settings');
     document.getElementById('system-prompt-input').value = s.system_prompt || '';
   } catch {}
+  try {
+    const r = await api('GET', '/api/hypatia/models');
+    renderModelCards(r.models || []);
+  } catch {}
+}
+
+// ── Model Config ────────────────────────────────────────────────────────────
+
+let _modelCards = [];
+
+function renderModelCards(models) {
+  _modelCards = models.map(m => ({ ...m }));
+  _redrawModelLists();
+}
+
+function _redrawModelLists() {
+  ['llm','embedding'].forEach(type => {
+    const list = document.getElementById(`${type}-model-list`);
+    const cards = _modelCards.filter(m => (m.type || 'llm') === type);
+    if (!cards.length) {
+      list.innerHTML = `<div style="color:var(--subtext);font-size:13px;padding:8px 0">No ${type} models configured.</div>`;
+      return;
+    }
+    list.innerHTML = cards.map((m, i) => _modelCardHtml(m, i, type)).join('');
+  });
+}
+
+function _modelCardHtml(m, idx, type) {
+  const id = m.id || ('new-' + Math.random().toString(36).slice(2));
+  if (!m.id) m.id = id;
+  const providers = ['hdc','openrouter','pollinations'];
+  return `
+  <div class="model-card" id="mc-${id}">
+    <div class="model-card-row">
+      <label class="mc-label">Label
+        <input type="text" value="${esc(m.label||'')}" autocomplete="off"
+          oninput="_mcSet('${id}','label',this.value)" placeholder="My Model">
+      </label>
+      <label class="mc-label">Provider
+        <select onchange="_mcSet('${id}','provider',this.value)">
+          ${providers.map(p => `<option value="${p}" ${m.provider===p?'selected':''}>${p}</option>`).join('')}
+        </select>
+      </label>
+      <label class="mc-label">Type
+        <select onchange="_mcSet('${id}','type',this.value);_redrawModelLists()">
+          <option value="llm" ${(m.type||'llm')==='llm'?'selected':''}>LLM (chat)</option>
+          <option value="embedding" ${m.type==='embedding'?'selected':''}>Embedding</option>
+        </select>
+      </label>
+      <label class="mc-label" style="display:flex;flex-direction:row;align-items:center;gap:6px;padding-top:18px">
+        <input type="checkbox" ${m.enabled!==false?'checked':''} onchange="_mcSet('${id}','enabled',this.checked)"> Enabled
+      </label>
+      <div style="margin-left:auto;display:flex;gap:4px;padding-top:18px">
+        <button class="btn-ghost" onclick="_mcMove('${id}',-1)" title="Move up">↑</button>
+        <button class="btn-ghost" onclick="_mcMove('${id}',1)" title="Move down">↓</button>
+        <button class="btn-danger" onclick="_mcRemove('${id}')">✕</button>
+      </div>
+    </div>
+    <div class="model-card-row">
+      <label class="mc-label" style="flex:2">API Endpoint
+        <input type="text" value="${esc(m.api_endpoint||'')}" autocomplete="off"
+          oninput="_mcSet('${id}','api_endpoint',this.value)" placeholder="https://openrouter.ai/api/v1">
+      </label>
+      <label class="mc-label" style="flex:2">API Token
+        <input type="password" value="${esc(m.api_token||'')}" autocomplete="new-password"
+          oninput="_mcSet('${id}','api_token',this.value)" placeholder="sk-… (leave blank if none)">
+      </label>
+      <label class="mc-label" style="flex:2">Model Name
+        <div style="display:flex;gap:4px">
+          <select id="mn-${id}" onchange="_mcSet('${id}','model_name',this.value)" style="flex:1">
+            ${m.model_name ? `<option value="${esc(m.model_name)}" selected>${esc(m.model_name)}</option>` : '<option value="">— fetch models —</option>'}
+          </select>
+          <button class="btn-ghost" onclick="_fetchModels('${id}')" title="Fetch available models">⟳</button>
+        </div>
+      </label>
+    </div>
+  </div>`;
+}
+
+function _mcSet(id, key, val) {
+  const m = _modelCards.find(m => m.id === id);
+  if (m) m[key] = val;
+}
+
+function _mcMove(id, dir) {
+  const cards = _modelCards;
+  const idx = cards.findIndex(m => m.id === id);
+  const type = cards[idx].type || 'llm';
+  // find next/prev card of same type
+  const sameType = cards.map((m,i) => ({m,i})).filter(({m}) => (m.type||'llm') === type);
+  const pos = sameType.findIndex(({i}) => i === idx);
+  const swapPos = pos + dir;
+  if (swapPos < 0 || swapPos >= sameType.length) return;
+  const swapIdx = sameType[swapPos].i;
+  [cards[idx], cards[swapIdx]] = [cards[swapIdx], cards[idx]];
+  _redrawModelLists();
+}
+
+function _mcRemove(id) {
+  _modelCards = _modelCards.filter(m => m.id !== id);
+  _redrawModelLists();
+}
+
+function addModelCard(type) {
+  _modelCards.push({
+    id: 'new-' + Math.random().toString(36).slice(2),
+    label: '', api_endpoint: '', api_token: '',
+    model_name: '', type, provider: 'hdc', enabled: true
+  });
+  _redrawModelLists();
+}
+
+async function _fetchModels(id) {
+  const m = _modelCards.find(m => m.id === id);
+  if (!m) return;
+  const sel = document.getElementById(`mn-${id}`);
+  sel.innerHTML = '<option>Fetching…</option>';
+  try {
+    const r = await api('POST', '/api/hypatia/fetch-models', {
+      provider: m.provider,
+      api_endpoint: m.api_endpoint,
+      api_token: m.api_token,
+    });
+    sel.innerHTML = r.models.map(mod =>
+      `<option value="${esc(mod.id)}" ${mod.id===m.model_name?'selected':''}>${esc(mod.name)}</option>`
+    ).join('');
+    if (!m.model_name && r.models.length) {
+      m.model_name = r.models[0].id;
+      sel.value = m.model_name;
+    }
+  } catch(e) {
+    sel.innerHTML = `<option value="${esc(m.model_name||'')}">Error: ${esc(e.message||'fetch failed')}</option>`;
+  }
+}
+
+async function saveModelConfig() {
+  const msg = document.getElementById('model-save-msg');
+  msg.textContent = '';
+  try {
+    await api('PUT', '/api/hypatia/models', { models: _modelCards });
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Saved';
+    setTimeout(() => msg.textContent = '', 2000);
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Save failed';
+  }
 }
 
 async function saveSystemPrompt(e) {

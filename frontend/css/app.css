@@ -387,6 +387,17 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .user-edit-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--subtext); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
 .user-edit-grid input, .user-edit-grid select { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 10px; font-size: 13px; }
 
+.model-section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.model-hint { font-size:11px; color:var(--subtext); font-weight:400; text-transform:none; letter-spacing:0; margin-left:6px; }
+.model-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 16px; margin-bottom: 8px;
+}
+.model-card-row { display:flex; gap:12px; align-items:flex-end; margin-bottom:10px; }
+.model-card-row:last-child { margin-bottom:0; }
+.mc-label { display:flex; flex-direction:column; gap:4px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--subtext); flex:1; }
+.mc-label input, .mc-label select { background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:6px 10px; font-size:13px; font-weight:400; text-transform:none; letter-spacing:0; }
+
 .inline-form { display: flex; gap: 8px; align-items: center; }
 .inline-form.col { flex-direction: column; align-items: flex-start; max-width: 400px; }
 .inline-form input, .inline-form select {

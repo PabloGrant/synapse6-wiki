@@ -220,12 +220,28 @@
 
       <!-- SA HYPATIA TAB -->
       <div id="admin-sa-hypatia" class="admin-tab-content hidden">
-        <div class="admin-section-title">LLM Endpoint</div>
-        <div style="color:var(--subtext);font-size:13px;margin-bottom:12px">Configured via environment variables on the server (LLM_BASE, LLM_MODEL).</div>
+
+        <div class="model-section-header">
+          <div class="admin-section-title" style="margin:0">Chat Models <span class="model-hint">(fallback order — first healthy model is used)</span></div>
+          <button class="btn-ghost" onclick="addModelCard('llm')">+ Add</button>
+        </div>
+        <div id="llm-model-list" style="margin-bottom:8px"></div>
+
+        <div class="model-section-header" style="margin-top:24px">
+          <div class="admin-section-title" style="margin:0">Embedding Models <span class="model-hint">(fallback order)</span></div>
+          <button class="btn-ghost" onclick="addModelCard('embedding')">+ Add</button>
+        </div>
+        <div id="embedding-model-list" style="margin-bottom:16px"></div>
+
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:32px">
+          <button class="btn-primary" onclick="saveModelConfig()">Save Model Config</button>
+          <span id="model-save-msg" class="form-error"></span>
+        </div>
+
         <div class="admin-section-title">System Prompt</div>
         <form onsubmit="saveSystemPrompt(event)" class="col-form">
           <textarea id="system-prompt-input" rows="10" placeholder="System prompt for Hypatia…"></textarea>
-          <button type="submit" class="btn-primary">Save Prompt</button>
+          <button type="submit" class="btn-primary" style="width:fit-content">Save Prompt</button>
         </form>
       </div>
     </div>
