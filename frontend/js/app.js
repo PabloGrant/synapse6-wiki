@@ -7,7 +7,22 @@ let pwTargetUser = null;   // username being changed in the modal
 let pwIsSuperAdmin = false; // which endpoint to call
 
 // ── INIT ───────────────────────────────────────────────────────────────────
+// ── THEME ──
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const icon = document.getElementById('theme-icon');
+  if (icon) icon.src = theme === 'light' ? '/vendor/icons/moon.svg' : '/vendor/icons/sun.svg';
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = current === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('theme', next);
+  applyTheme(next);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  applyTheme(localStorage.getItem('theme') || 'dark');
   marked.setOptions({ gfm: true, breaks: true });
   // Load allowed domain hint for registration form
   try {

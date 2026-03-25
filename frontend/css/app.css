@@ -13,6 +13,21 @@
   --sidebar-w: 260px;
   --danger: #f87171;
   --danger-bg: #2b0d0d;
+  --icon-filter: invert(1);
+}
+
+[data-theme="light"] {
+  --bg: #f6f8fa;
+  --surface: #ffffff;
+  --card: #eef1f4;
+  --card-hover: #e4e9ef;
+  --border: #d0d7de;
+  --text: #1f2328;
+  --subtext: #656d76;
+  --tag-bg: #ddf4e4;
+  --danger: #cf222e;
+  --danger-bg: #ffebe9;
+  --icon-filter: invert(0);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -398,7 +413,7 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
   display: inline-flex; align-items: center;
 }
 .icon-btn:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-.icon-btn img, .btn-ghost img { opacity: 0.55; filter: invert(1); vertical-align: middle; }
+.icon-btn img, .btn-ghost img { opacity: 0.55; filter: var(--icon-filter); vertical-align: middle; }
 .icon-btn:hover img, .btn-ghost:hover img { opacity: 0.9; }
 
 .close-btn {
