@@ -214,7 +214,7 @@ async def test_model(body: TestModelBody):
                 json={
                     "model": body.model_name,
                     "messages": [{"role": "user", "content": "Reply with one word: OK"}],
-                    "max_tokens": 8,
+                    "max_tokens": 16,
                     "temperature": 0,
                 },
             )

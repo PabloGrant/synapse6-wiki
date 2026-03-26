@@ -771,7 +771,7 @@ async function _testModel(id) {
       model_name: m.model_name,
     });
     msg.style.color = 'var(--green)';
-    msg.textContent = `✓ Connected — model replied: "${r.reply}"`;
+    msg.textContent = r.reply ? `✓ Connected — "${r.reply}"` : '✓ Connected';
   } catch(e) {
     msg.style.color = 'var(--danger)';
     msg.textContent = `✗ ${e.message || 'Connection failed'}`;
