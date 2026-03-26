@@ -1300,6 +1300,14 @@ function showDropbox() {
   currentSlug = '__dropbox__';
   showView('dropbox');
   setActiveNav('__dropbox__');
+  switchDropboxTab('files');
+}
+
+function switchDropboxTab(tab) {
+  ['files','summaries','search','upload'].forEach(t => {
+    document.getElementById(`dtab-${t}`).classList.toggle('active', t === tab);
+    document.getElementById(`dropbox-tab-${t}`).classList.toggle('hidden', t !== tab);
+  });
 }
 
 // ── UTILS ──────────────────────────────────────────────────────────────────

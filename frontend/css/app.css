@@ -380,6 +380,31 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .home-placeholder-title { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
 .home-placeholder-sub { font-size: 15px; color: var(--subtext); }
 
+/* ── DROPBOX ── */
+#dropbox-view { max-width: 860px; }
+.dropbox-header { margin-bottom: 20px; }
+.dropbox-title { font-size: 22px; font-weight: 800; }
+.dropbox-tabs {
+  display: flex; gap: 2px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 24px;
+}
+.dropbox-tab {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 18px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--subtext); background: transparent; border: none;
+  border-bottom: 2px solid transparent; margin-bottom: -2px;
+  cursor: pointer; transition: all 0.15s;
+}
+.dropbox-tab img { filter: var(--icon-filter); opacity: 0.5; }
+.dropbox-tab:hover { color: var(--text); }
+.dropbox-tab:hover img { opacity: 0.8; }
+.dropbox-tab.active { color: var(--green); border-bottom-color: var(--green); }
+.dropbox-tab.active img { filter: none; opacity: 1; }
+.dropbox-tab-content { min-height: 200px; }
+.dropbox-empty { padding: 60px 0; text-align: center; font-size: 14px; color: var(--subtext); }
+
 /* ── HYPATIA ── */
 #home-view { max-width: 860px; }
 #hypatia-avatar-top {

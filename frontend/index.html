@@ -120,9 +120,34 @@
 
     <!-- DROPBOX PAGE -->
     <div id="dropbox-view" class="hidden">
-      <div class="hypatia-header">
-        <div class="hypatia-title"><img src="/vendor/icons/upload.svg" width="24" height="24" alt="" style="filter:var(--icon-filter);opacity:0.8;vertical-align:middle;margin-right:8px">Library Dropbox</div>
-        <div class="hypatia-sub">Upload documents to the knowledge base — coming soon</div>
+      <div class="dropbox-header">
+        <div class="dropbox-title">Library Dropbox</div>
+      </div>
+      <div class="dropbox-tabs">
+        <button class="dropbox-tab active" id="dtab-files" onclick="switchDropboxTab('files')">
+          <img src="/vendor/icons/folder.svg" width="15" height="15" alt="">FILES
+        </button>
+        <button class="dropbox-tab" id="dtab-summaries" onclick="switchDropboxTab('summaries')">
+          <img src="/vendor/icons/file-text.svg" width="15" height="15" alt="">SUMMARIES
+        </button>
+        <button class="dropbox-tab" id="dtab-search" onclick="switchDropboxTab('search')">
+          <img src="/vendor/icons/search.svg" width="15" height="15" alt="">SEARCH
+        </button>
+        <button class="dropbox-tab" id="dtab-upload" onclick="switchDropboxTab('upload')">
+          <img src="/vendor/icons/upload.svg" width="15" height="15" alt="">UPLOAD
+        </button>
+      </div>
+      <div id="dropbox-tab-files" class="dropbox-tab-content">
+        <div class="dropbox-empty">No files yet.</div>
+      </div>
+      <div id="dropbox-tab-summaries" class="dropbox-tab-content hidden">
+        <div class="dropbox-empty">No summaries yet.</div>
+      </div>
+      <div id="dropbox-tab-search" class="dropbox-tab-content hidden">
+        <div class="dropbox-empty">Search coming soon.</div>
+      </div>
+      <div id="dropbox-tab-upload" class="dropbox-tab-content hidden">
+        <div class="dropbox-empty">Upload coming soon.</div>
       </div>
     </div>
 
