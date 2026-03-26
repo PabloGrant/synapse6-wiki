@@ -344,14 +344,23 @@ async function sendChat(e) {
   document.getElementById('chat-send').disabled = true;
   try {
     const r = await api('POST', '/api/hypatia/chat', { messages: chatHistory });
-    thinking.remove();
+    await fadeOutMsg(thinking);
     appendChatMsg('assistant', r.reply, 'idle');
     chatHistory.push({ role: 'assistant', content: r.reply });
   } catch (ex) {
-    thinking.remove();
+    await fadeOutMsg(thinking);
     appendChatMsg('assistant', '⚠ Could not reach Hypatia: ' + ex.message, 'idle');
   }
   document.getElementById('chat-send').disabled = false;
+}
+
+function fadeOutMsg(el) {
+  return new Promise(resolve => {
+    el.querySelector('.chat-avatar')?.classList.add('chat-avatar-fading');
+    el.style.transition = 'opacity 0.5s ease';
+    el.style.opacity = '0';
+    setTimeout(() => { el.remove(); resolve(); }, 520);
+  });
 }
 
 function appendChatMsg(role, text, state = 'idle') {
