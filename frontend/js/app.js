@@ -307,7 +307,6 @@ function toggleEditorPreview() {
   document.getElementById('preview-toggle-btn').textContent = _editorInPreview ? 'Edit' : 'Preview';
   if (_editorInPreview) livePreview();
 }
-}
 
 async function savePage() {
   const content = document.getElementById('editor').value;
