@@ -139,8 +139,11 @@ def _default_prompts() -> list:
     ]
 
 
-def _gather_kb_context() -> str:
-    """Read the latest version of every page and concatenate as context."""
+def _kb_context_fallback() -> str:
+    """
+    Fallback: read MD files directly when Qdrant is unavailable or returns nothing.
+    Used on a blank-slate deployment before any pages are indexed.
+    """
     slugs = []
     if os.path.exists(CONTENT_DIR):
         slugs = [
@@ -164,6 +167,65 @@ def _gather_kb_context() -> str:
         total += len(chunk)
 
     return "".join(chunks)
+
+
+async def _retrieve_context(messages: list[dict], settings: dict) -> str:
+    """
+    Semantic retrieval: embed the last user message → Qdrant top-N →
+    inject the most relevant wiki page chunks and library chunks as context.
+    Falls back to file-based reading if Qdrant is unavailable or empty.
+    """
+    from lib.pipeline import embed, qdrant_search
+
+    # Use the last user message as the search query
+    last_user = next(
+        (m["content"] for m in reversed(messages) if m.get("role") == "user"),
+        None,
+    )
+    if not last_user:
+        return _kb_context_fallback()
+
+    try:
+        vectors = await embed([last_user[:2000]], settings)
+    except RuntimeError:
+        return _kb_context_fallback()
+
+    try:
+        results = await qdrant_search(vectors[0], limit=14, score_threshold=0.18)
+    except Exception:
+        return _kb_context_fallback()
+
+    if not results:
+        return _kb_context_fallback()
+
+    # Deduplicate: best chunk per slug (wiki) / file_id (library)
+    seen_wiki: dict[str, dict] = {}
+    seen_lib: dict[str, dict] = {}
+    for r in results:
+        rtype = r["payload"].get("type", "")
+        if rtype == "wiki_page":
+            slug = r["payload"].get("slug", "")
+            if slug and slug not in seen_wiki:
+                seen_wiki[slug] = r
+        elif rtype == "library_page":
+            fid = r["payload"].get("file_id", "")
+            if fid and fid not in seen_lib:
+                seen_lib[fid] = r
+
+    parts = []
+    for slug, r in seen_wiki.items():
+        title = r["payload"].get("page_title") or slug
+        heading = r["payload"].get("heading", "")
+        section = f" › {heading}" if heading else ""
+        content = r["payload"].get("content", "")
+        parts.append(f"### Wiki: {title}{section}\n\n{content}")
+
+    for fid, r in seen_lib.items():
+        fname = r["payload"].get("original_filename", fid)
+        content = r["payload"].get("content", "")
+        parts.append(f"### Library: {fname}\n\n{content}")
+
+    return "\n\n---\n\n".join(parts) if parts else _kb_context_fallback()
 
 
 class ChatMessage(BaseModel):
@@ -198,11 +260,13 @@ def _assemble_system(settings: dict) -> str:
 async def chat(body: ChatBody):
     settings = _load_settings()
     system_prompt = _assemble_system(settings)
-    kb_context = _gather_kb_context()
+
+    messages_raw = [{"role": m.role, "content": m.content} for m in body.messages]
+    kb_context = await _retrieve_context(messages_raw, settings)
 
     full_system = system_prompt
     if kb_context:
-        full_system += f"\n\n## Knowledge Base\n{kb_context}"
+        full_system += f"\n\n## Relevant Knowledge Base Content\n{kb_context}"
 
     # Font expression
     if body.font_expression_enabled:
@@ -374,6 +438,51 @@ def get_prompts():
 def save_prompts(body: PromptsBody):
     settings = _load_settings()
     settings["hypatia_prompts"] = [p.dict() for p in body.prompts]
+    _save_settings(settings)
+    return {"ok": True}
+
+
+# ── Memory configuration ───────────────────────────────────────────────────
+
+def _default_memory_settings() -> dict:
+    return {
+        "user_profiles": False,
+        "user_expertise": False,
+        "user_history": False,
+        "sessions_enabled": False,
+        "retention_days": 30,
+        "consolidation": "disabled",
+        "max_tokens": 800,
+        "inject_profile": False,
+        "inject_sessions": False,
+        "inject_index": False,
+    }
+
+
+@router.get("/memory-settings", dependencies=[Depends(require_role("superadmin"))])
+def get_memory_settings():
+    settings = _load_settings()
+    stored = settings.get("hypatia_memory", {})
+    return {**_default_memory_settings(), **stored}
+
+
+class MemorySettingsBody(BaseModel):
+    user_profiles: bool = False
+    user_expertise: bool = False
+    user_history: bool = False
+    sessions_enabled: bool = False
+    retention_days: int = 30
+    consolidation: str = "disabled"
+    max_tokens: int = 800
+    inject_profile: bool = False
+    inject_sessions: bool = False
+    inject_index: bool = False
+
+
+@router.put("/memory-settings", dependencies=[Depends(require_role("superadmin"))])
+def save_memory_settings(body: MemorySettingsBody):
+    settings = _load_settings()
+    settings["hypatia_memory"] = body.dict()
     _save_settings(settings)
     return {"ok": True}
 

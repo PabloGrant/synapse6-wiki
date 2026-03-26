@@ -524,22 +524,36 @@ async def get_overlaps(file_id: str):
 
     results = await _qdrant_search_exclude_file(vectors[0], exclude_file_id=file_id)
 
-    # Deduplicate — keep best-scoring chunk per unique file
-    seen: dict[str, dict] = {}
+    # Deduplicate — best chunk per library file or wiki slug
+    seen_lib: dict[str, dict] = {}
+    seen_wiki: dict[str, dict] = {}
     for r in results:
-        fid = r["payload"].get("file_id")
-        if not fid or fid in seen:
-            continue
-        seen[fid] = {
-            "file_id": fid,
-            "original_filename": r["payload"].get("original_filename", ""),
-            "score": round(r["score"], 3),
-            "page_number": r["payload"].get("page_number"),
-            "page_title": r["payload"].get("page_title"),
-            "snippet": r["payload"].get("content", "")[:300],
-        }
+        rtype = r["payload"].get("type", "")
+        if rtype == "wiki_page":
+            slug = r["payload"].get("slug", "")
+            if slug and slug not in seen_wiki:
+                seen_wiki[slug] = {
+                    "slug": slug,
+                    "page_title": r["payload"].get("page_title", slug),
+                    "score": round(r["score"], 3),
+                    "snippet": r["payload"].get("content", "")[:300],
+                }
+        else:
+            fid = r["payload"].get("file_id")
+            if fid and fid not in seen_lib:
+                seen_lib[fid] = {
+                    "file_id": fid,
+                    "original_filename": r["payload"].get("original_filename", ""),
+                    "score": round(r["score"], 3),
+                    "page_number": r["payload"].get("page_number"),
+                    "page_title": r["payload"].get("page_title"),
+                    "snippet": r["payload"].get("content", "")[:300],
+                }
 
-    return {"library": list(seen.values())[:6]}
+    return {
+        "library": list(seen_lib.values())[:6],
+        "wiki": list(seen_wiki.values())[:4],
+    }
 
 
 @router.delete("/files/{file_id}", dependencies=[Depends(require_role("editor"))])

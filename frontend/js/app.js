@@ -647,6 +647,7 @@ function switchHypatiaTab(tab) {
       renderPromptSections();
     }).catch(() => {});
   }
+  if (tab === 'memory') loadMemorySettings();
 }
 
 async function saveProfile(event) {
@@ -1174,6 +1175,67 @@ async function saveAllPrompts() {
     await api('PUT', '/api/hypatia/prompts', { prompts: _promptSections });
     msg.style.color = 'var(--green)';
     msg.textContent = 'Saved';
+    setTimeout(() => msg.textContent = '', 2000);
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Save failed';
+  }
+}
+
+// ── MEMORY SETTINGS ─────────────────────────────────────────────────────────
+
+let _memDirtyFlag = false;
+
+function memDirty() { _memDirtyFlag = true; }
+
+async function loadMemorySettings() {
+  try {
+    const s = await api('GET', '/api/hypatia/memory-settings');
+    const set = (id, val) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = !!val;
+      else el.value = val ?? el.value;
+    };
+    set('mem-user-profiles',   s.user_profiles);
+    set('mem-user-expertise',  s.user_expertise);
+    set('mem-user-history',    s.user_history);
+    set('mem-sessions-enabled',s.sessions_enabled);
+    set('mem-retention',       s.retention_days);
+    set('mem-consolidation',   s.consolidation);
+    set('mem-max-tokens',      s.max_tokens);
+    set('mem-inject-profile',  s.inject_profile);
+    set('mem-inject-sessions', s.inject_sessions);
+    set('mem-inject-index',    s.inject_index);
+    _memDirtyFlag = false;
+  } catch {}
+}
+
+async function saveMemorySettings() {
+  const msg = document.getElementById('memory-save-msg');
+  msg.textContent = '';
+  const get = id => {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    return el.type === 'checkbox' ? el.checked : el.value;
+  };
+  const body = {
+    user_profiles:    get('mem-user-profiles'),
+    user_expertise:   get('mem-user-expertise'),
+    user_history:     get('mem-user-history'),
+    sessions_enabled: get('mem-sessions-enabled'),
+    retention_days:   parseInt(get('mem-retention')) || 30,
+    consolidation:    get('mem-consolidation'),
+    max_tokens:       parseInt(get('mem-max-tokens')) || 800,
+    inject_profile:   get('mem-inject-profile'),
+    inject_sessions:  get('mem-inject-sessions'),
+    inject_index:     get('mem-inject-index'),
+  };
+  try {
+    await api('PUT', '/api/hypatia/memory-settings', body);
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Saved';
+    _memDirtyFlag = false;
     setTimeout(() => msg.textContent = '', 2000);
   } catch(e) {
     msg.style.color = 'var(--danger)';

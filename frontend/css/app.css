@@ -548,6 +548,38 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 }
 .psc-textarea:focus { border-color: var(--green); }
 
+/* Memory settings */
+.memory-section {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px 20px; margin-bottom: 12px; max-width: 760px;
+}
+.memory-section-title {
+  font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--subtext); margin-bottom: 14px;
+}
+.memory-toggle-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
+.memory-toggle-label {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 13px; font-weight: 500; color: var(--text); cursor: pointer;
+}
+.memory-toggle-label input[type="checkbox"] { accent-color: var(--green); width: 15px; height: 15px; flex-shrink: 0; }
+.memory-toggle-hint { font-size: 11px; color: var(--subtext); padding-left: 24px; }
+.memory-field-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.memory-field-label { font-size: 13px; font-weight: 500; color: var(--text); min-width: 160px; }
+.memory-select {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-size: 13px; padding: 5px 10px; outline: none;
+}
+.memory-select:focus { border-color: var(--green); }
+.memory-input-sm {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-size: 13px; padding: 5px 10px; outline: none; width: 90px;
+}
+.memory-input-sm:focus { border-color: var(--green); }
+.memory-path-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.memory-path-label { font-size: 12px; color: var(--subtext); min-width: 120px; }
+.memory-path { font-family: monospace; font-size: 12px; color: var(--green-light); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; }
+
 /* Hypatia skill cards */
 .skill-grid { display: flex; flex-direction: column; gap: 10px; max-width: 760px; }
 .skill-card {
