@@ -470,6 +470,9 @@ async function showHypatia() {
     } catch {}
   }
 
+  // Always refresh fonts when entering Hypatia (may have been added mid-session)
+  await loadHypatiaFonts();
+
   initHypatiaAvatar();
   _updateFontToggleBtn();
 

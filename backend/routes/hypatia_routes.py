@@ -106,7 +106,7 @@ async def chat(body: ChatBody):
         if fonts:
             font_lines = "\n".join(f"- FONT:{f['name']} → {f.get('vibe','')}" for f in fonts)
             default_name = default_font["name"] if default_font else "your current font"
-            full_system += f"\n\nFont expression: You may change your response font when the conversational vibe genuinely shifts. Hold a font through a mood or topic arc — read the conversation as a whole. Only prefix your response with FONT:FontName (on its own line at the very start) when actually changing font. Do not prefix if keeping the current font. Available fonts:\n{font_lines}\nDefault (no prefix needed): {default_name}"
+            full_system += f"\n\nFont expression: You express emotional tone through font selection. On your FIRST response, always choose a font and prefix with FONT:FontName on the very first line. After that, only prefix again when the conversational vibe genuinely shifts — hold a font through a mood or topic arc. Do not prefix if keeping the current font. Use exact font names only. Available fonts:\n{font_lines}\nDefault/neutral: {default_name}"
 
     messages = [{"role": "system", "content": full_system}]
     messages += [{"role": m.role, "content": m.content} for m in body.messages]
