@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from datetime import date
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional
@@ -97,7 +98,7 @@ def delete_category(slug: str):
 @router.post("/page", dependencies=[Depends(require_role("editor"))])
 def add_page(body: PageBody):
     nav = _load_nav()
-    slug = _slugify(body.name)
+    slug = date.today().strftime("%Y%m%d") + "-" + _slugify(body.name)
     for cat in nav["categories"]:
         if cat["slug"] == body.category_slug:
             if body.parent_slug:

@@ -839,6 +839,10 @@ async def reflect(body: ReflectBody, user=Depends(get_current_user)):
         return {"ok": True, "skipped": True, "error": str(e)}
 
 
+class HypatiaNotesBody(BaseModel):
+    notes: str
+
+
 @router.get("/me/hypatia-notes")
 async def get_hypatia_notes(user=Depends(get_current_user)):
     """Returns Hypatia's notes about the current user (for display in AI Prefs tab)."""
@@ -846,10 +850,50 @@ async def get_hypatia_notes(user=Depends(get_current_user)):
     return {"notes": notes}
 
 
+@router.put("/me/hypatia-notes")
+async def save_hypatia_notes(body: HypatiaNotesBody, user=Depends(get_current_user)):
+    """User can edit Hypatia's notes about themselves."""
+    p = _hypatia_notes_path(user["sub"])
+    if body.notes.strip():
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w") as f:
+            f.write(body.notes.strip())
+    elif os.path.exists(p):
+        os.remove(p)
+    return {"ok": True}
+
+
 @router.delete("/me/hypatia-notes")
 async def delete_hypatia_notes(user=Depends(get_current_user)):
     """Clears Hypatia's notes about the current user."""
     p = _hypatia_notes_path(user["sub"])
+    if os.path.exists(p):
+        os.remove(p)
+    return {"ok": True}
+
+
+# ── Superadmin: manage any user's notes ──────────────────────────────────────
+
+@router.get("/admin/users/{username}/hypatia-notes", dependencies=[Depends(require_role("superadmin"))])
+async def admin_get_user_notes(username: str):
+    return {"notes": _load_hypatia_notes(username)}
+
+
+@router.put("/admin/users/{username}/hypatia-notes", dependencies=[Depends(require_role("superadmin"))])
+async def admin_save_user_notes(username: str, body: HypatiaNotesBody):
+    p = _hypatia_notes_path(username)
+    if body.notes.strip():
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w") as f:
+            f.write(body.notes.strip())
+    elif os.path.exists(p):
+        os.remove(p)
+    return {"ok": True}
+
+
+@router.delete("/admin/users/{username}/hypatia-notes", dependencies=[Depends(require_role("superadmin"))])
+async def admin_delete_user_notes(username: str):
+    p = _hypatia_notes_path(username)
     if os.path.exists(p):
         os.remove(p)
     return {"ok": True}

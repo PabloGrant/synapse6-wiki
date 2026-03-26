@@ -156,11 +156,64 @@ function renderNav(data) {
   tree.innerHTML = html;
 }
 
+let _searchDebounce = null;
+
 function filterNav(q) {
-  q = q.toLowerCase();
+  // Instant client-side nav filter
+  const lq = q.toLowerCase();
   document.querySelectorAll('.nav-link').forEach(el => {
-    el.style.display = (!q || el.textContent.toLowerCase().includes(q)) ? '' : 'none';
+    el.style.display = (!lq || el.textContent.toLowerCase().includes(lq)) ? '' : 'none';
   });
+  // Debounced Qdrant search
+  clearTimeout(_searchDebounce);
+  const panel = document.getElementById('search-results-panel');
+  if (q.length < 2) { panel.classList.add('hidden'); return; }
+  _searchDebounce = setTimeout(() => _runSearch(q), 380);
+}
+
+function searchKeydown(e) {
+  if (e.key === 'Escape') {
+    document.getElementById('search-results-panel').classList.add('hidden');
+    document.getElementById('search').value = '';
+    filterNav('');
+  }
+}
+
+async function _runSearch(q) {
+  const panel = document.getElementById('search-results-panel');
+  panel.innerHTML = '<div class="search-result-loading">Searching…</div>';
+  panel.classList.remove('hidden');
+  try {
+    const r = await api('GET', `/api/search?q=${encodeURIComponent(q)}&limit=8`);
+    if (!r.results || r.results.length === 0) {
+      panel.innerHTML = '<div class="search-result-empty">No pages found</div>';
+      return;
+    }
+    panel.innerHTML = r.results.map(res => {
+      const sub = res.heading && res.heading !== res.title
+        ? `<span class="sr-heading"> › ${esc(res.heading)}</span>` : '';
+      const snippet = res.snippet ? `<div class="sr-snippet">${esc(res.snippet)}</div>` : '';
+      return `<div class="search-result-item" onclick="_searchNav('${esc(res.slug)}')">
+        <div class="sr-title">${esc(res.title)}${sub}</div>
+        ${snippet}
+      </div>`;
+    }).join('');
+  } catch {
+    panel.innerHTML = '<div class="search-result-empty">Search unavailable</div>';
+  }
+}
+
+function _searchNav(slug) {
+  document.getElementById('search-results-panel').classList.add('hidden');
+  document.getElementById('search').value = '';
+  filterNav('');
+  // Find the nav entry and click it if present, otherwise navigate directly
+  const navEl = document.getElementById(`nav-${slug}`);
+  if (navEl) {
+    navEl.click();
+  } else {
+    loadPage(slug, '', slug);
+  }
 }
 
 function setActiveNav(slug) {
@@ -222,7 +275,16 @@ async function rollback(slug, filename) {
 }
 
 // ── EDITOR ─────────────────────────────────────────────────────────────────
+let _editorInPreview = false;
+
 function enterEditMode() {
+  // Reset to edit pane
+  _editorInPreview = false;
+  document.getElementById('editor-pane').classList.remove('hidden');
+  document.getElementById('preview-pane').classList.add('hidden');
+  const btn = document.getElementById('preview-toggle-btn');
+  if (btn) btn.textContent = 'Preview';
+
   api('GET', `/api/pages/${currentSlug}`).then(data => {
     document.getElementById('editor').value = data.content || '';
     livePreview();
@@ -236,6 +298,15 @@ function cancelEdit() { showView('page'); }
 
 function livePreview() {
   document.getElementById('editor-preview').innerHTML = marked.parse(document.getElementById('editor').value);
+}
+
+function toggleEditorPreview() {
+  _editorInPreview = !_editorInPreview;
+  document.getElementById('editor-pane').classList.toggle('hidden', _editorInPreview);
+  document.getElementById('preview-pane').classList.toggle('hidden', !_editorInPreview);
+  document.getElementById('preview-toggle-btn').textContent = _editorInPreview ? 'Edit' : 'Preview';
+  if (_editorInPreview) livePreview();
+}
 }
 
 async function savePage() {
@@ -272,6 +343,87 @@ async function handleUpload(input) {
     alert('Upload failed: ' + ex.message);
   }
   input.value = '';
+}
+
+// ── EDITOR TOOLBAR ─────────────────────────────────────────────────────────
+
+function tbInsert(prefix, suffix, placeholder) {
+  const ta = document.getElementById('editor');
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const selected = ta.value.substring(start, end) || placeholder;
+  ta.value = ta.value.substring(0, start) + prefix + selected + suffix + ta.value.substring(end);
+  ta.selectionStart = start + prefix.length;
+  ta.selectionEnd = start + prefix.length + selected.length;
+  ta.focus();
+  livePreview();
+}
+
+function tbLine(prefix) {
+  const ta = document.getElementById('editor');
+  const start = ta.selectionStart;
+  const lineStart = ta.value.lastIndexOf('\n', start - 1) + 1;
+  ta.value = ta.value.substring(0, lineStart) + prefix + ta.value.substring(lineStart);
+  ta.selectionStart = ta.selectionEnd = lineStart + prefix.length;
+  ta.focus();
+  livePreview();
+}
+
+function tbLink() {
+  const ta = document.getElementById('editor');
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const selected = ta.value.substring(start, end) || 'link text';
+  const insert = `[${selected}](url)`;
+  ta.value = ta.value.substring(0, start) + insert + ta.value.substring(end);
+  const urlStart = start + 1 + selected.length + 2;  // after [text](
+  ta.selectionStart = urlStart;
+  ta.selectionEnd = urlStart + 3;  // select "url"
+  ta.focus();
+  livePreview();
+}
+
+function tbCodeBlock() {
+  const ta = document.getElementById('editor');
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const selected = ta.value.substring(start, end) || 'code here';
+  const insert = '\n```\n' + selected + '\n```\n';
+  ta.value = ta.value.substring(0, start) + insert + ta.value.substring(end);
+  ta.selectionStart = start + 5;
+  ta.selectionEnd = start + 5 + selected.length;
+  ta.focus();
+  livePreview();
+}
+
+function tbTable() {
+  const ta = document.getElementById('editor');
+  const start = ta.selectionStart;
+  const tbl = '\n| Column 1 | Column 2 | Column 3 |\n|----------|----------|----------|\n| Cell     | Cell     | Cell     |\n';
+  ta.value = ta.value.substring(0, start) + tbl + ta.value.substring(start);
+  ta.selectionStart = ta.selectionEnd = start + tbl.length;
+  ta.focus();
+  livePreview();
+}
+
+function tbMermaid() {
+  const ta = document.getElementById('editor');
+  const start = ta.selectionStart;
+  const chart = '\n```mermaid\ngraph TD\n  A[Start] --> B[End]\n```\n';
+  ta.value = ta.value.substring(0, start) + chart + ta.value.substring(start);
+  ta.selectionStart = ta.selectionEnd = start + chart.length;
+  ta.focus();
+  livePreview();
+}
+
+function tbHr() {
+  const ta = document.getElementById('editor');
+  const start = ta.selectionStart;
+  const insert = '\n\n---\n\n';
+  ta.value = ta.value.substring(0, start) + insert + ta.value.substring(start);
+  ta.selectionStart = ta.selectionEnd = start + insert.length;
+  ta.focus();
+  livePreview();
 }
 
 // ── COMMENTS ───────────────────────────────────────────────────────────────
@@ -691,36 +843,105 @@ window.addEventListener('beforeunload', () => {
 // ── Hypatia notes (read-only display) ─────────────────────────────────────
 
 async function loadHypatiaNotesDisplay() {
-  const el = document.getElementById('hypatia-notes-display');
-  const clearBtn = document.getElementById('hypatia-notes-clear-btn');
-  if (!el) return;
+  const ta = document.getElementById('hypatia-notes-ta');
+  if (!ta) return;
   try {
     const r = await api('GET', '/api/hypatia/me/hypatia-notes');
-    if (r.notes) {
-      el.innerHTML = '';
-      el.classList.add('has-notes');
-      // Render markdown-ish — just preserve line breaks and bold
-      const html = r.notes
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n/g, '<br>');
-      el.innerHTML = html;
-      if (clearBtn) clearBtn.style.display = '';
-    } else {
-      el.innerHTML = '<span class="hypatia-notes-empty">No notes yet — start a conversation with Hypatia.</span>';
-      el.classList.remove('has-notes');
-      if (clearBtn) clearBtn.style.display = 'none';
-    }
+    ta.value = r.notes || '';
+    ta.placeholder = r.notes ? '' : 'No notes yet — start a conversation with Hypatia.';
   } catch {
-    el.innerHTML = '<span class="hypatia-notes-empty">Could not load notes.</span>';
+    ta.placeholder = 'Could not load notes.';
+  }
+}
+
+async function saveHypatiaNotesOwn() {
+  const ta = document.getElementById('hypatia-notes-ta');
+  const msg = document.getElementById('hypatia-notes-msg');
+  if (!ta) return;
+  try {
+    await api('PUT', '/api/hypatia/me/hypatia-notes', { notes: ta.value });
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Saved';
+    setTimeout(() => msg.textContent = '', 2500);
+  } catch (e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Save failed';
   }
 }
 
 async function clearHypatiaNotesConfirm() {
-  if (!confirm('Clear Hypatia\'s notes about you? She will start fresh after your next conversation.')) return;
+  if (!confirm('Clear Hypatia\'s notes? She will start fresh after your next conversation.')) return;
   try {
     await api('DELETE', '/api/hypatia/me/hypatia-notes');
-    await loadHypatiaNotesDisplay();
+    document.getElementById('hypatia-notes-ta').value = '';
+    const msg = document.getElementById('hypatia-notes-msg');
+    if (msg) { msg.style.color = 'var(--subtext)'; msg.textContent = 'Cleared'; setTimeout(() => msg.textContent = '', 2000); }
+  } catch {}
+}
+
+// ── Admin: Hypatia notes for any user ─────────────────────────────────────
+
+async function adminLoadMemoryUserList() {
+  const sel = document.getElementById('admin-notes-user-sel');
+  if (!sel || sel.options.length > 1) return;  // already populated
+  try {
+    const r = await api('GET', '/api/auth/superadmin/users');
+    (r || []).forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.username;
+      opt.textContent = (u.display_name || u.username) + ' (' + u.username + ')';
+      sel.appendChild(opt);
+    });
+  } catch {}
+}
+
+async function adminLoadUserNotes() {
+  const sel = document.getElementById('admin-notes-user-sel');
+  const ta = document.getElementById('admin-notes-ta');
+  const saveBtn = document.getElementById('admin-notes-save-btn');
+  const msg = document.getElementById('admin-notes-msg');
+  if (!sel || !ta) return;
+  const username = sel.value;
+  if (!username) { ta.value = ''; ta.disabled = true; saveBtn.disabled = true; return; }
+  ta.disabled = false;
+  saveBtn.disabled = false;
+  msg.textContent = 'Loading…';
+  try {
+    const r = await api('GET', `/api/hypatia/admin/users/${encodeURIComponent(username)}/hypatia-notes`);
+    ta.value = r.notes || '';
+    ta.placeholder = r.notes ? '' : 'No notes yet for this user.';
+    msg.textContent = '';
+  } catch {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = 'Could not load notes';
+  }
+}
+
+async function adminSaveUserNotes() {
+  const sel = document.getElementById('admin-notes-user-sel');
+  const ta = document.getElementById('admin-notes-ta');
+  const msg = document.getElementById('admin-notes-msg');
+  const username = sel?.value;
+  if (!username) return;
+  try {
+    await api('PUT', `/api/hypatia/admin/users/${encodeURIComponent(username)}/hypatia-notes`, { notes: ta.value });
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Saved';
+    setTimeout(() => msg.textContent = '', 2500);
+  } catch (e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Save failed';
+  }
+}
+
+async function adminClearUserNotesConfirm() {
+  const sel = document.getElementById('admin-notes-user-sel');
+  const username = sel?.value;
+  if (!username) return;
+  if (!confirm(`Clear Hypatia's notes about ${username}?`)) return;
+  try {
+    await api('DELETE', `/api/hypatia/admin/users/${encodeURIComponent(username)}/hypatia-notes`);
+    document.getElementById('admin-notes-ta').value = '';
   } catch {}
 }
 
@@ -782,7 +1003,7 @@ function switchHypatiaTab(tab) {
       renderPromptSections();
     }).catch(() => {});
   }
-  if (tab === 'memory') loadMemorySettings();
+  if (tab === 'memory') { loadMemorySettings(); adminLoadMemoryUserList(); }
 }
 
 async function saveProfile(event) {

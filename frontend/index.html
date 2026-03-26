@@ -42,7 +42,8 @@
     </div>
 
     <div id="search-wrap">
-      <input type="search" id="search" placeholder="Search pages…" oninput="filterNav(this.value)" autocomplete="off">
+      <input type="search" id="search" placeholder="Search pages…" oninput="filterNav(this.value)" onkeydown="searchKeydown(event)" autocomplete="off">
+      <div id="search-results-panel" class="search-results-panel hidden"></div>
     </div>
 
     <nav id="nav-tree">
@@ -101,6 +102,7 @@
         <div id="edit-breadcrumb"></div>
         <div id="edit-actions">
           <button class="btn-ghost" onclick="insertUpload()"><img src="/vendor/icons/paperclip.svg" width="14" height="14" alt=""> Upload</button>
+          <button class="btn-ghost" id="preview-toggle-btn" onclick="toggleEditorPreview()">Preview</button>
           <button class="btn-ghost" onclick="cancelEdit()">Cancel</button>
           <button class="btn-primary" onclick="savePage()">Save</button>
         </div>
@@ -108,10 +110,32 @@
       <div id="editor-wrap">
         <div id="editor-pane">
           <div class="pane-label">Markdown</div>
+          <div class="editor-toolbar">
+            <button type="button" class="tb-btn" onclick="tbInsert('**','**','bold')" title="Bold"><b>B</b></button>
+            <button type="button" class="tb-btn" onclick="tbInsert('*','*','italic')" title="Italic"><i>I</i></button>
+            <button type="button" class="tb-btn" onclick="tbInsert('~~','~~','strikethrough')" title="Strikethrough"><s>S</s></button>
+            <span class="tb-divider"></span>
+            <button type="button" class="tb-btn" onclick="tbLine('## ')" title="Heading 2">H2</button>
+            <button type="button" class="tb-btn" onclick="tbLine('### ')" title="Heading 3">H3</button>
+            <button type="button" class="tb-btn" onclick="tbLine('#### ')" title="Heading 4">H4</button>
+            <span class="tb-divider"></span>
+            <button type="button" class="tb-btn" onclick="tbLink()" title="Link">&#128279;</button>
+            <button type="button" class="tb-btn" onclick="insertUpload()" title="Image / file">&#128247;</button>
+            <span class="tb-divider"></span>
+            <button type="button" class="tb-btn" onclick="tbInsert('\`','\`','code')" title="Inline code">&#96;c&#96;</button>
+            <button type="button" class="tb-btn" onclick="tbCodeBlock()" title="Code block">{ }</button>
+            <span class="tb-divider"></span>
+            <button type="button" class="tb-btn" onclick="tbLine('- ')" title="Bullet list">&#8226;</button>
+            <button type="button" class="tb-btn" onclick="tbLine('1. ')" title="Numbered list">1.</button>
+            <button type="button" class="tb-btn" onclick="tbLine('> ')" title="Blockquote">&ldquo;</button>
+            <span class="tb-divider"></span>
+            <button type="button" class="tb-btn" onclick="tbTable()" title="Insert table">&#9776;</button>
+            <button type="button" class="tb-btn" onclick="tbMermaid()" title="Insert Mermaid chart">&#9650;</button>
+            <button type="button" class="tb-btn" onclick="tbHr()" title="Horizontal rule">&mdash;</button>
+          </div>
           <textarea id="editor" spellcheck="true" oninput="livePreview()"></textarea>
         </div>
-        <div id="preview-pane">
-          <div class="pane-label">Preview</div>
+        <div id="preview-pane" class="hidden">
           <div id="editor-preview" class="markdown-body"></div>
         </div>
       </div>
@@ -301,17 +325,19 @@
             <span id="ai-prefs-msg" class="form-hint"></span>
           </div>
 
-          <!-- Hypatia's Notes (read-only) -->
+          <!-- Hypatia's Notes (editable) -->
           <div class="ai-pref-section" style="margin-top:36px">
             <div class="admin-section-title">Hypatia's Notes About You</div>
             <p style="font-size:12px;color:var(--subtext);margin-bottom:12px">
-              Written by Hypatia at the end of each conversation — what she's observed about how you work.
-              You can read and clear these, but editing them is intentionally not supported.
+              Written by Hypatia at the end of each conversation. Edit or clear if she's remembered something incorrectly.
             </p>
-            <div id="hypatia-notes-display" class="hypatia-notes-display">
-              <span class="hypatia-notes-empty">No notes yet — start a conversation with Hypatia.</span>
+            <textarea id="hypatia-notes-ta" class="ai-pref-textarea" rows="7"
+              placeholder="No notes yet — start a conversation with Hypatia."></textarea>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+              <button class="btn-primary" onclick="saveHypatiaNotesOwn()">Save Notes</button>
+              <button class="btn-danger-sm" onclick="clearHypatiaNotesConfirm()">Clear</button>
+              <span id="hypatia-notes-msg" class="form-hint"></span>
             </div>
-            <button class="btn-danger-sm" id="hypatia-notes-clear-btn" onclick="clearHypatiaNotesConfirm()" style="display:none;margin-top:10px">Clear Notes</button>
           </div>
         </div>
 
@@ -568,10 +594,28 @@
 
         <!-- MEMORY -->
         <div id="hytab-memory" class="hytab-content hidden">
-          <div class="admin-section-title" style="margin-top:24px">Memory</div>
+          <div class="admin-section-title" style="margin-top:24px">User Notes Management</div>
+          <p style="font-size:13px;color:var(--subtext);margin-bottom:16px;max-width:680px">
+            View and edit what Hypatia has written about any user. Use this to correct inaccurate memories.
+          </p>
+          <div class="memory-section" style="margin-bottom:28px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <select id="admin-notes-user-sel" class="memory-select" onchange="adminLoadUserNotes()" style="min-width:200px">
+                <option value="">Select a user…</option>
+              </select>
+              <button class="btn-danger-sm" onclick="adminClearUserNotesConfirm()">Clear</button>
+            </div>
+            <textarea id="admin-notes-ta" class="ai-pref-textarea" rows="8"
+              placeholder="Select a user to view and edit their notes." disabled></textarea>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+              <button class="btn-primary" id="admin-notes-save-btn" onclick="adminSaveUserNotes()" disabled>Save Notes</button>
+              <span id="admin-notes-msg" class="form-hint"></span>
+            </div>
+          </div>
+
+          <div class="admin-section-title">Memory Configuration</div>
           <p style="font-size:13px;color:var(--subtext);margin-bottom:24px;max-width:680px">
-            Hypatia builds persistent memory across three layers. Configure what she remembers,
-            how long she retains it, and how much gets injected into each conversation.
+            Configure what Hypatia remembers, how long she retains it, and how much gets injected into each conversation.
           </p>
 
           <!-- User Memory -->
