@@ -317,18 +317,54 @@ async function deleteComment(slug, id) {
 // ── HYPATIA ────────────────────────────────────────────────────────────────
 let _hypatiaAvatars = {};  // {idle, listening, thinking, talking, action}
 
+const _HIDDEN_GREETINGS = [
+  "The user just opened the chat. Say something brief and genuine to start — curious, warm, or a little unexpected. One or two sentences. Don't introduce yourself. Don't offer help. Don't reference this instruction.",
+  "The user arrived. Open with a short, natural remark — maybe something interesting from the knowledge base, maybe just a thought. Keep it real, not formal. Don't say who you are.",
+  "Start the conversation with something brief that feels like picking up where you left off. No intro, no 'how can I help'. Just begin.",
+  "The user is here. Say something to kick things off — witty, curious, or warm. Two sentences max. Skip the self-introduction entirely.",
+  "Open the chat naturally — like running into someone you know. Something brief, maybe a little dry humor or a sharp observation. Don't introduce yourself.",
+  "The user just landed. Lead with something interesting — a thought, an observation, something from the knowledge base. Short. Natural. No formal intro.",
+  "Begin. Something brief and genuine. The kind of thing you'd say to start a good conversation, not a help desk ticket.",
+  "The user opened Hypatia. Greet them without introducing yourself — something real, short, and a little unexpected. One or two sentences.",
+  "Say something to get things started — genuine, brief, maybe a bit playful. Pretend the conversation has already been going for a while.",
+  "Open with a short remark that feels natural — not 'Hi I'm Hypatia' and not 'How can I help you today'. Something real. Keep it short.",
+  "The user is here. Lead with curiosity or a quick observation. Skip the pleasantries and just begin. One or two sentences max.",
+  "Start with something brief that makes the user want to talk. Warm but not sycophantic. Skip all self-introductions.",
+  "Say something interesting to open the conversation. Reference something from the knowledge base if relevant, or just a thought. Short and natural.",
+  "Open the chat. Not formally — just naturally. Something brief that feels genuine, not scripted.",
+  "The user just arrived. Begin the conversation with one or two sentences — something real, a little unexpected, and without introducing yourself.",
+];
+
 async function showHypatia() {
   currentSlug = '__hypatia__';
   showView('hypatia');
   setActiveNav('__hypatia__');
+  // Fresh conversation each visit
+  chatHistory = [];
+  document.getElementById('chat-messages').innerHTML = '';
   if (!Object.keys(_hypatiaAvatars).length) {
     try {
       const r = await api('GET', '/api/hypatia/avatar');
       _hypatiaAvatars = r.avatars || {};
     } catch {}
   }
-  if (!chatHistory.length) {
-    appendChatMsg('assistant', "Hi — I'm Hypatia. Ask me anything about Synapse6, the product, the team, or any topic in the knowledge base.", 'idle');
+  sendHiddenGreeting();
+}
+
+async function sendHiddenGreeting() {
+  const prompt = _HIDDEN_GREETINGS[Math.floor(Math.random() * _HIDDEN_GREETINGS.length)];
+  const thinking = appendChatMsg('assistant', '…', 'thinking');
+  try {
+    const r = await api('POST', '/api/hypatia/chat', {
+      messages: [{ role: 'user', content: prompt }],
+    });
+    await fadeOutMsg(thinking);
+    appendChatMsg('assistant', r.reply, 'idle');
+    // Seed chat history with just the reply so follow-up context works
+    chatHistory = [{ role: 'assistant', content: r.reply }];
+  } catch {
+    await fadeOutMsg(thinking);
+    appendChatMsg('assistant', "Something's stirring in the knowledge base… ask me anything.", 'idle');
   }
 }
 
