@@ -1155,7 +1155,12 @@ async function addFontCard() {
     const match = raw.match(/family=([^:&]+)/);
     if (!match) { alert('Could not extract font name from URL'); return; }
     name = decodeURIComponent(match[1].replace(/\+/g, ' '));
-    url = raw.includes('display=') ? raw : raw + '&display=swap';
+    // Strip preview-only params (text=, subset=), ensure display=swap
+    const u = new URL(raw);
+    u.searchParams.delete('text');
+    u.searchParams.delete('subset');
+    if (!u.searchParams.has('display')) u.searchParams.set('display', 'swap');
+    url = u.toString();
   } else {
     name = raw;
     url = `https://fonts.googleapis.com/css2?family=${raw.replace(/ /g, '+')}&display=swap`;
