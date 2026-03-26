@@ -394,7 +394,7 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
     last_error = None
     async with httpx.AsyncClient(timeout=120) as client:
         for model in llm_models:
-            base = model["api_endpoint"].rstrip("/")
+            base = _api_base(model["api_endpoint"])
             headers = {}
             if model.get("api_token"):
                 headers["Authorization"] = f"Bearer {model['api_token']}"
@@ -639,10 +639,19 @@ class TestModelBody(BaseModel):
     type: str = "llm"
 
 
+def _api_base(endpoint: str) -> str:
+    """Normalize an API endpoint: strip trailing slash and any trailing /v1 so
+    callers can always safely append /v1/chat/completions etc."""
+    base = endpoint.rstrip("/")
+    if base.endswith("/v1"):
+        base = base[:-3]
+    return base
+
+
 @router.post("/test-model", dependencies=[Depends(require_role("superadmin"))])
 async def test_model(body: TestModelBody):
     """Send a minimal chat completion to verify the model is reachable."""
-    base = body.api_endpoint.rstrip("/")
+    base = _api_base(body.api_endpoint)
     headers = {"Content-Type": "application/json"}
     if body.api_token:
         headers["Authorization"] = f"Bearer {body.api_token}"
@@ -693,7 +702,7 @@ async def fetch_provider_models(body: FetchModelsBody):
     elif body.provider == "pollinations":
         url = "https://text.pollinations.ai/models"
     elif body.provider == "hdc":
-        base = body.api_endpoint.rstrip("/")
+        base = _api_base(body.api_endpoint)
         if not base:
             raise HTTPException(400, "API endpoint required for HDC provider")
         url = f"{base}/v1/models"
@@ -816,7 +825,7 @@ async def reflect(body: ReflectBody, user=Depends(get_current_user)):
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
-                f"{lm['api_endpoint']}/v1/chat/completions",
+                f"{_api_base(lm['api_endpoint'])}/v1/chat/completions",
                 headers={"Authorization": f"Bearer {lm.get('api_token', '')}"},
                 json={
                     "model": lm.get("model_name", LLM_MODEL),
