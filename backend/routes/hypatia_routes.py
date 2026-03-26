@@ -197,6 +197,7 @@ class TestModelBody(BaseModel):
     api_endpoint: str
     api_token: str = ""
     model_name: str = ""
+    type: str = "llm"
 
 
 @router.post("/test-model", dependencies=[Depends(require_role("superadmin"))])
@@ -208,20 +209,31 @@ async def test_model(body: TestModelBody):
         headers["Authorization"] = f"Bearer {body.api_token}"
     async with httpx.AsyncClient(timeout=15) as client:
         try:
-            resp = await client.post(
-                f"{base}/v1/chat/completions",
-                headers=headers,
-                json={
-                    "model": body.model_name,
-                    "messages": [{"role": "user", "content": "Reply with one word: OK"}],
-                    "max_tokens": 16,
-                    "temperature": 0,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            reply = data["choices"][0]["message"]["content"].strip()
-            return {"ok": True, "reply": reply}
+            if body.type == "embedding":
+                resp = await client.post(
+                    f"{base}/v1/embeddings",
+                    headers=headers,
+                    json={"model": body.model_name, "input": "test"},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                dims = len(data["data"][0]["embedding"])
+                return {"ok": True, "reply": f"{dims}-dim vector"}
+            else:
+                resp = await client.post(
+                    f"{base}/v1/chat/completions",
+                    headers=headers,
+                    json={
+                        "model": body.model_name,
+                        "messages": [{"role": "user", "content": "Reply with one word: OK"}],
+                        "max_tokens": 16,
+                        "temperature": 0,
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                reply = data["choices"][0]["message"]["content"].strip()
+                return {"ok": True, "reply": reply}
         except httpx.TimeoutException:
             raise HTTPException(504, "Connection timed out")
         except httpx.HTTPStatusError as e:

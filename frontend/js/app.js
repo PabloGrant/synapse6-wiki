@@ -769,6 +769,7 @@ async function _testModel(id) {
       api_endpoint: m.api_endpoint,
       api_token: m.api_token,
       model_name: m.model_name,
+      type: m.type || 'llm',
     });
     msg.style.color = 'var(--green)';
     msg.textContent = r.reply ? `✓ Connected — "${r.reply}"` : '✓ Connected';
