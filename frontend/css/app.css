@@ -515,6 +515,14 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .admin-tabs { display: flex; gap: 4px; background: var(--card); border-radius: 8px; padding: 4px; margin: 16px 0 24px; width: fit-content; }
 .admin-tab-content.hidden { display: none; }
 .admin-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--subtext); margin-bottom: 12px; }
+.admin-placeholder { font-size: 13px; color: var(--subtext); font-style: italic; margin-top: 8px; }
+
+/* Hypatia subtabs */
+.subtabs { display: flex; gap: 4px; background: var(--card); border-radius: 8px; padding: 4px; margin: 16px 0 20px; width: fit-content; flex-wrap: wrap; }
+.subtab { background: none; border: none; padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 500; color: var(--subtext); cursor: pointer; transition: background 0.15s, color 0.15s; white-space: nowrap; }
+.subtab.active { background: var(--surface); color: #a78bfa; font-weight: 700; }
+.subtab:hover:not(.active) { color: #c4b5fd; background: rgba(167,139,250,0.08); }
+.hytab-content.hidden { display: none; }
 .user-row {
   display: flex; align-items: center; gap: 12px;
   background: var(--card); border: 1px solid var(--border);

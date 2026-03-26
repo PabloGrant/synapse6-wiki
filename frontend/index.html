@@ -279,48 +279,86 @@
       <!-- SA HYPATIA TAB -->
       <div id="admin-sa-hypatia" class="admin-tab-content hidden">
 
-        <div class="model-section-header">
-          <div class="admin-section-title" style="margin:0">Expression Fonts <span class="model-hint">(Hypatia's emotional palette)</span></div>
-        </div>
-        <div id="font-list" style="margin-bottom:8px"></div>
-        <div class="inline-form" style="margin-bottom:8px">
-          <input type="text" id="add-font-input" placeholder="Font name or Google Fonts URL" style="flex:1">
-          <button class="btn-ghost" onclick="addFontCard()">+ Add Font</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:32px">
-          <button class="btn-primary" onclick="saveFonts()">Save Fonts</button>
-          <span id="font-save-msg" class="form-error"></span>
+        <!-- Hypatia subtabs -->
+        <div class="subtabs" id="hypatia-subtabs">
+          <button class="subtab active" id="hytab-btn-profile"        onclick="switchHypatiaTab('profile')">Profile</button>
+          <button class="subtab"        id="hytab-btn-models"         onclick="switchHypatiaTab('models')">Models</button>
+          <button class="subtab"        id="hytab-btn-skills"         onclick="switchHypatiaTab('skills')">Skills</button>
+          <button class="subtab"        id="hytab-btn-connections"    onclick="switchHypatiaTab('connections')">Connections</button>
+          <button class="subtab"        id="hytab-btn-system-prompts" onclick="switchHypatiaTab('system-prompts')">System Prompts</button>
+          <button class="subtab"        id="hytab-btn-memory"         onclick="switchHypatiaTab('memory')">Memory</button>
         </div>
 
-        <div class="model-section-header">
-          <div class="admin-section-title" style="margin:0">Chat Models <span class="model-hint">(fallback order — first healthy model is used)</span></div>
-          <button class="btn-ghost" onclick="addModelCard('llm')">+ Add</button>
-        </div>
-        <div id="llm-model-list" style="margin-bottom:8px"></div>
+        <!-- PROFILE -->
+        <div id="hytab-profile" class="hytab-content">
+          <div class="admin-section-title" style="margin-top:24px">Avatar States</div>
+          <div id="avatar-states-list"></div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:12px;margin-bottom:32px">
+            <button class="btn-primary" onclick="saveAvatars()">Save Avatars</button>
+            <span id="avatar-save-msg" class="form-error"></span>
+          </div>
 
-        <div class="model-section-header" style="margin-top:24px">
-          <div class="admin-section-title" style="margin:0">Embedding Models <span class="model-hint">(fallback order)</span></div>
-          <button class="btn-ghost" onclick="addModelCard('embedding')">+ Add</button>
-        </div>
-        <div id="embedding-model-list" style="margin-bottom:16px"></div>
-
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:32px">
-          <button class="btn-primary" onclick="saveModelConfig()">Save Model Config</button>
-          <span id="model-save-msg" class="form-error"></span>
-        </div>
-
-        <div class="admin-section-title" style="margin-top:32px">Avatar States</div>
-        <div id="avatar-states-list"></div>
-        <div style="display:flex;align-items:center;gap:12px;margin-top:12px;margin-bottom:32px">
-          <button class="btn-primary" onclick="saveAvatars()">Save Avatars</button>
-          <span id="avatar-save-msg" class="form-error"></span>
+          <div class="model-section-header">
+            <div class="admin-section-title" style="margin:0">Expression Fonts <span class="model-hint">(Hypatia's emotional palette)</span></div>
+          </div>
+          <div id="font-list" style="margin-bottom:8px"></div>
+          <div class="inline-form" style="margin-bottom:8px">
+            <input type="text" id="add-font-input" placeholder="Font name or Google Fonts URL" style="flex:1">
+            <button class="btn-ghost" onclick="addFontCard()">+ Add Font</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:32px">
+            <button class="btn-primary" onclick="saveFonts()">Save Fonts</button>
+            <span id="font-save-msg" class="form-error"></span>
+          </div>
         </div>
 
-        <div class="admin-section-title">System Prompt</div>
-        <form onsubmit="saveSystemPrompt(event)" class="col-form">
-          <textarea id="system-prompt-input" rows="10" placeholder="System prompt for Hypatia…"></textarea>
-          <button type="submit" class="btn-primary" style="width:fit-content">Save Prompt</button>
-        </form>
+        <!-- MODELS -->
+        <div id="hytab-models" class="hytab-content hidden">
+          <div class="model-section-header" style="margin-top:24px">
+            <div class="admin-section-title" style="margin:0">Chat Models <span class="model-hint">(fallback order — first healthy model is used)</span></div>
+            <button class="btn-ghost" onclick="addModelCard('llm')">+ Add</button>
+          </div>
+          <div id="llm-model-list" style="margin-bottom:8px"></div>
+
+          <div class="model-section-header" style="margin-top:24px">
+            <div class="admin-section-title" style="margin:0">Embedding Models <span class="model-hint">(fallback order)</span></div>
+            <button class="btn-ghost" onclick="addModelCard('embedding')">+ Add</button>
+          </div>
+          <div id="embedding-model-list" style="margin-bottom:16px"></div>
+
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:32px">
+            <button class="btn-primary" onclick="saveModelConfig()">Save Model Config</button>
+            <span id="model-save-msg" class="form-error"></span>
+          </div>
+        </div>
+
+        <!-- SKILLS -->
+        <div id="hytab-skills" class="hytab-content hidden">
+          <div class="admin-section-title" style="margin-top:24px">Skills</div>
+          <p class="admin-placeholder">Skills configuration coming soon.</p>
+        </div>
+
+        <!-- CONNECTIONS -->
+        <div id="hytab-connections" class="hytab-content hidden">
+          <div class="admin-section-title" style="margin-top:24px">Connections</div>
+          <p class="admin-placeholder">External connections and integrations coming soon.</p>
+        </div>
+
+        <!-- SYSTEM PROMPTS -->
+        <div id="hytab-system-prompts" class="hytab-content hidden">
+          <div class="admin-section-title" style="margin-top:24px">System Prompt</div>
+          <form onsubmit="saveSystemPrompt(event)" class="col-form">
+            <textarea id="system-prompt-input" rows="12" placeholder="System prompt for Hypatia…"></textarea>
+            <button type="submit" class="btn-primary" style="width:fit-content">Save Prompt</button>
+          </form>
+        </div>
+
+        <!-- MEMORY -->
+        <div id="hytab-memory" class="hytab-content hidden">
+          <div class="admin-section-title" style="margin-top:24px">Memory</div>
+          <p class="admin-placeholder">Hypatia's persistent memory management coming soon.</p>
+        </div>
+
       </div>
     </div>
 

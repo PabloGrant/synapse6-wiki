@@ -632,7 +632,15 @@ function switchAdminTab(tab) {
   if (tab === 'users') loadAdminUsers();
   if (tab === 'sa-users') loadSAUsers();
   if (tab === 'sa-site') loadSiteSettings();
-  if (tab === 'sa-hypatia') loadHypatiaSettings();
+  if (tab === 'sa-hypatia') { loadHypatiaSettings(); switchHypatiaTab('profile'); }
+}
+
+const ALL_HYPATIA_TABS = ['profile','models','skills','connections','system-prompts','memory'];
+function switchHypatiaTab(tab) {
+  ALL_HYPATIA_TABS.forEach(t => {
+    document.getElementById(`hytab-btn-${t}`)?.classList.toggle('active', t === tab);
+    document.getElementById(`hytab-${t}`)?.classList.toggle('hidden', t !== tab);
+  });
 }
 
 async function saveProfile(event) {
