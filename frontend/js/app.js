@@ -138,7 +138,8 @@ function renderNav(data) {
   const tree = document.getElementById('nav-tree');
   let html = '';
 
-  html += `<div class="nav-link hypatia" onclick="showHypatia()">🧠 Hypatia</div>`;
+  html += `<div class="nav-link hypatia" id="nav-__hypatia__" onclick="showHypatia()"><img src="/vendor/icons/bot-message-square.svg" width="15" height="15" alt=""> Hypatia</div>`;
+  html += `<div class="nav-link dropbox" id="nav-__dropbox__" onclick="showDropbox()"><img src="/vendor/icons/upload.svg" width="15" height="15" alt=""> Library Dropbox</div>`;
 
   const cats = data.categories || [];
   for (const cat of cats) {
@@ -884,9 +885,15 @@ async function addPage(e) {
 
 // ── VIEW SWITCHER ──────────────────────────────────────────────────────────
 function showView(view) {
-  ['page','edit','hypatia','admin'].forEach(v => {
+  ['page','edit','hypatia','admin','dropbox'].forEach(v => {
     document.getElementById(`${v}-view`).classList.toggle('hidden', v !== view);
   });
+}
+
+function showDropbox() {
+  currentSlug = '__dropbox__';
+  showView('dropbox');
+  setActiveNav('__dropbox__');
 }
 
 // ── UTILS ──────────────────────────────────────────────────────────────────

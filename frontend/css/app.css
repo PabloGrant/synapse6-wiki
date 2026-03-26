@@ -165,6 +165,8 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .nav-link.active { color: var(--green); border-left-color: var(--green); background: rgba(124,184,153,0.08); font-weight: 500; }
 .nav-link.subpage { padding-left: 26px; font-size: 12px; }
 .nav-link.hypatia { color: var(--green-light); margin-top: 4px; }
+.nav-link.dropbox { color: var(--subtext); }
+.nav-link.hypatia img, .nav-link.dropbox img { filter: var(--icon-filter); opacity: 0.6; margin-right: 2px; }
 
 .nav-loading { padding: 16px 12px; font-size: 13px; color: var(--subtext); }
 
