@@ -1,7 +1,8 @@
 import os
+import hashlib
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import HTTPException
 
@@ -49,13 +50,30 @@ app.include_router(settings_router)
 STATIC_DIR = os.environ.get("STATIC_DIR", "/app/static")
 DATA_VENDOR_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "vendor")
 
+def _compute_version(static_dir: str) -> str:
+    """Hash the CSS and JS to generate a cache-busting version string."""
+    try:
+        h = hashlib.md5()
+        for rel in ("css/app.css", "js/app.js"):
+            p = os.path.join(static_dir, rel)
+            if os.path.exists(p):
+                h.update(open(p, "rb").read())
+        return h.hexdigest()[:10]
+    except Exception:
+        return "dev"
+
 if os.path.exists(DATA_VENDOR_DIR):
     app.mount("/vendor", StaticFiles(directory=DATA_VENDOR_DIR), name="vendor")
 
 if os.path.exists(STATIC_DIR):
-    app.mount("/static", StaticFiles(directory=os.path.join(STATIC_DIR, "static") if os.path.exists(os.path.join(STATIC_DIR, "static")) else STATIC_DIR), name="static")
+    _static_root = os.path.join(STATIC_DIR, "static") if os.path.exists(os.path.join(STATIC_DIR, "static")) else STATIC_DIR
+    app.mount("/static", StaticFiles(directory=_static_root), name="static")
+    _APP_VERSION = _compute_version(_static_root)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
         index = os.path.join(STATIC_DIR, "index.html")
-        return FileResponse(index)
+        html = open(index).read()
+        html = html.replace('app.css"', f'app.css?v={_APP_VERSION}"')
+        html = html.replace('app.js"', f'app.js?v={_APP_VERSION}"')
+        return HTMLResponse(html)
