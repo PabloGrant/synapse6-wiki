@@ -653,8 +653,6 @@ async def test_model(body: TestModelBody):
     """Send a minimal chat completion to verify the model is reachable."""
     base = _api_base(body.api_endpoint)
     token = (body.api_token or "").strip()
-    import logging
-    logging.warning(f"[test_model] endpoint={base!r} token_len={len(token)} token_prefix={token[:8]!r}")
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -687,8 +685,8 @@ async def test_model(body: TestModelBody):
                 )
                 resp.raise_for_status()
                 data = resp.json()
-                reply = data["choices"][0]["message"]["content"].strip()
-                return {"ok": True, "reply": reply}
+                reply = (data["choices"][0]["message"].get("content") or "").strip()
+                return {"ok": True, "reply": reply or "OK (no text content)"}
         except httpx.TimeoutException:
             raise HTTPException(504, "Connection timed out")
         except httpx.HTTPStatusError as e:
