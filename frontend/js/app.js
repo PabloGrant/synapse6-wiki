@@ -139,8 +139,8 @@ function renderNav(data) {
   const tree = document.getElementById('nav-tree');
   let html = '';
 
-  html += `<div class="nav-link" id="nav-__home__" onclick="showHome()"><img src="/vendor/icons/home.svg" width="15" height="15" alt=""> Home</div>`;
-  html += `<div class="nav-link dropbox" id="nav-__dropbox__" onclick="showDropbox()"><img src="/vendor/icons/upload.svg" width="15" height="15" alt=""> Library Dropbox</div>`;
+  html += `<div class="nav-link" id="nav-__home__" onclick="showHome()"><img src="/vendor/icons/home.svg" width="18" height="18" alt="">Home</div>`;
+  html += `<div class="nav-link dropbox" id="nav-__dropbox__" onclick="showDropbox()"><img src="/vendor/icons/upload.svg" width="18" height="18" alt="">Library Dropbox</div>`;
 
   const cats = data.categories || [];
   for (const cat of cats) {
