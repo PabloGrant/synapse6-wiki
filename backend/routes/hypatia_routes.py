@@ -268,6 +268,48 @@ def _load_user_profile(username: str) -> str:
     return ""
 
 
+def _hypatia_notes_path(username: str) -> str:
+    return os.path.join(DATA_DIR, "hypatia", "memory", "users", f"{username}_hypatia.md")
+
+
+def _load_hypatia_notes(username: str) -> str:
+    """Load Hypatia's own observations about a user. Returns empty string if none."""
+    p = _hypatia_notes_path(username)
+    if os.path.exists(p):
+        try:
+            with open(p) as f:
+                return f.read().strip()
+        except Exception:
+            pass
+    return ""
+
+
+def _get_recent_user_activity(username: str, limit: int = 10) -> list:
+    """Scan wiki page meta files for pages recently authored by this user."""
+    results = []
+    if not os.path.exists(CONTENT_DIR):
+        return results
+    for slug in os.listdir(CONTENT_DIR):
+        meta_path = os.path.join(CONTENT_DIR, slug, "_meta.json")
+        if not os.path.exists(meta_path):
+            continue
+        try:
+            with open(meta_path) as f:
+                meta = json.load(f)
+        except Exception:
+            continue
+        if meta.get("last_edited_by") != username:
+            continue
+        results.append({
+            "slug": meta.get("slug", slug),
+            "title": meta.get("title", slug),
+            "last_indexed_at": meta.get("last_indexed_at", ""),
+            "summary": meta.get("summary", ""),
+        })
+    results.sort(key=lambda x: x["last_indexed_at"], reverse=True)
+    return results[:limit]
+
+
 def _load_team_profiles(current_username: str) -> str:
     """Load all other users' profiles as brief context for cross-user references."""
     mem_dir = os.path.join(DATA_DIR, "hypatia", "memory", "users")
@@ -314,11 +356,14 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
     messages_raw = [{"role": m.role, "content": m.content} for m in body.messages]
     kb_context = await _retrieve_context(messages_raw, settings)
     user_profile = _load_user_profile(user["sub"])
+    hypatia_notes = _load_hypatia_notes(user["sub"])
     team_profiles = _load_team_profiles(user["sub"])
 
     full_system = system_prompt
     if user_profile:
         full_system += f"\n\n## Who You're Talking To\n{user_profile}"
+    if hypatia_notes:
+        full_system += f"\n\n## Your Notes About This Person\n{hypatia_notes}"
     if team_profiles:
         full_system += f"\n\n{team_profiles}"
     if kb_context:
@@ -678,3 +723,133 @@ async def fetch_provider_models(body: FetchModelsBody):
         models = []
 
     return {"models": sorted(models, key=lambda m: m["name"].lower())}
+
+
+# ── End-of-session reflection ─────────────────────────────────────────────────
+
+class ReflectMessage(BaseModel):
+    role: str
+    content: str
+
+class ReflectBody(BaseModel):
+    messages: List[ReflectMessage]
+
+
+_REFLECT_PROMPT = """\
+You are Hypatia, the knowledge partner for Synapse6. A conversation with {display_name} has just ended.
+
+Your job is to write or update a compact memory note about this person — from your perspective, not theirs.
+This note will be silently injected into future conversations so you can pick up where you left off.
+
+--- WHAT YOU ALREADY KNOW (from their self-profile) ---
+{user_profile}
+
+--- YOUR PREVIOUS NOTES ABOUT THEM (update/replace as needed) ---
+{existing_notes}
+
+--- THEIR RECENT WIKI ACTIVITY ---
+{recent_activity}
+
+--- THE CONVERSATION THAT JUST ENDED ---
+{conversation}
+
+Write updated memory notes. Rules:
+- Maximum 400 words. Be ruthlessly concise.
+- Write in third person using their display name ("{display_name}").
+- Focus on: what they're currently working on, how they think, what they struggle with, people they mention, projects they're driving, preferences you observed in how they interact with you.
+- Do NOT repeat information already in their self-profile unless you observed something new or contradictory.
+- Do NOT invent details not present in the conversation or activity.
+- If there is nothing noteworthy to add or update, write only: NO_UPDATE
+- Start directly with the notes — no preamble, no "Here are my notes:", no titles."""
+
+
+@router.post("/reflect")
+async def reflect(body: ReflectBody, user=Depends(get_current_user)):
+    """End-of-session: compact the conversation + recent activity into Hypatia's user notes."""
+    # Minimum substance check — skip greetings-only sessions
+    user_turns = [m for m in body.messages if m.role == "user"]
+    if len(user_turns) < 2:
+        return {"ok": True, "skipped": True}
+
+    settings = _load_settings()
+    username = user["sub"]
+    display_name = user.get("display_name") or username
+
+    user_profile = _load_user_profile(username)
+    existing_notes = _load_hypatia_notes(username)
+    recent_pages = _get_recent_user_activity(username, limit=8)
+
+    # Format recent activity
+    if recent_pages:
+        activity_lines = []
+        for p in recent_pages:
+            line = f"- **{p['title']}** ({p['last_indexed_at'][:10] if p['last_indexed_at'] else 'unknown date'})"
+            if p.get("summary"):
+                line += f": {p['summary'][:120]}"
+            activity_lines.append(line)
+        recent_activity = "\n".join(activity_lines)
+    else:
+        recent_activity = "No recent wiki pages found."
+
+    # Format conversation (truncate to ~6000 chars to stay within context)
+    conv_lines = []
+    for m in body.messages:
+        prefix = "You" if m.role == "assistant" else display_name
+        conv_lines.append(f"{prefix}: {m.content}")
+    conversation = "\n".join(conv_lines)[-6000:]
+
+    prompt = _REFLECT_PROMPT.format(
+        display_name=display_name,
+        user_profile=user_profile or "No self-profile set yet.",
+        existing_notes=existing_notes or "None yet.",
+        recent_activity=recent_activity,
+        conversation=conversation,
+    )
+
+    # Use first enabled LLM
+    llm_models = [m for m in settings.get("llm_models", []) if m.get("enabled") and m.get("type", "llm") == "llm"]
+    llm_models.sort(key=lambda m: m.get("order", 0))
+    if not llm_models:
+        llm_models = [{"api_endpoint": LLM_BASE, "api_token": "", "model_name": LLM_MODEL}]
+    lm = llm_models[0]
+
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                f"{lm['api_endpoint']}/v1/chat/completions",
+                headers={"Authorization": f"Bearer {lm.get('api_token', '')}"},
+                json={
+                    "model": lm.get("model_name", LLM_MODEL),
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 600,
+                    "temperature": 0.3,
+                },
+            )
+        resp.raise_for_status()
+        result = resp.json()["choices"][0]["message"]["content"].strip()
+
+        if result and result != "NO_UPDATE":
+            mem_dir = os.path.dirname(_hypatia_notes_path(username))
+            os.makedirs(mem_dir, exist_ok=True)
+            with open(_hypatia_notes_path(username), "w") as f:
+                f.write(result)
+        return {"ok": True, "updated": result != "NO_UPDATE"}
+    except Exception as e:
+        # Non-fatal — log and return ok so the frontend can still clear the chat
+        return {"ok": True, "skipped": True, "error": str(e)}
+
+
+@router.get("/me/hypatia-notes")
+async def get_hypatia_notes(user=Depends(get_current_user)):
+    """Returns Hypatia's notes about the current user (for display in AI Prefs tab)."""
+    notes = _load_hypatia_notes(user["sub"])
+    return {"notes": notes}
+
+
+@router.delete("/me/hypatia-notes")
+async def delete_hypatia_notes(user=Depends(get_current_user)):
+    """Clears Hypatia's notes about the current user."""
+    p = _hypatia_notes_path(user["sub"])
+    if os.path.exists(p):
+        os.remove(p)
+    return {"ok": True}

@@ -445,6 +445,10 @@ function _saveHypatiaSession() {
   } catch {}
 }
 
+function _clearHypatiaSession() {
+  try { sessionStorage.removeItem(HYPATIA_SESSION_KEY); } catch {}
+}
+
 function _loadHypatiaSession() {
   try {
     const raw = sessionStorage.getItem(HYPATIA_SESSION_KEY);
@@ -643,7 +647,81 @@ function switchProfileTab(tab) {
     document.getElementById(`ptab-btn-${t}`)?.classList.toggle('active', t === tab);
     document.getElementById(`ptab-${t}`)?.classList.toggle('hidden', t !== tab);
   });
-  if (tab === 'ai-prefs') loadAiPrefs();
+  if (tab === 'ai-prefs') { loadAiPrefs(); loadHypatiaNotesDisplay(); }
+}
+
+// ── Session reflection + new conversation ─────────────────────────────────
+
+async function _endSession(thenClear) {
+  // Fire-and-forget reflect if there's substantive conversation
+  const userTurns = chatHistory.filter(m => m.role === 'user');
+  if (userTurns.length >= 2) {
+    try {
+      await api('POST', '/api/hypatia/reflect', { messages: chatHistory });
+    } catch {}
+  }
+  if (thenClear) {
+    _clearSession();
+  }
+}
+
+function _clearSession() {
+  chatHistory = [];
+  _currentHypatiaFont = null;
+  _clearHypatiaSession();
+  document.getElementById('chat-messages').innerHTML = '';
+  sendHiddenGreeting();
+}
+
+async function newConversation() {
+  const btn = document.getElementById('chat-new-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  await _endSession(true);
+  if (btn) { btn.disabled = false; btn.innerHTML = '&#8635;'; }
+}
+
+// Beacon on page unload (fire-and-forget, browser may discard if too slow)
+window.addEventListener('beforeunload', () => {
+  const userTurns = chatHistory.filter(m => m.role === 'user');
+  if (userTurns.length < 2) return;
+  const payload = JSON.stringify({ messages: chatHistory });
+  navigator.sendBeacon('/api/hypatia/reflect', new Blob([payload], { type: 'application/json' }));
+});
+
+// ── Hypatia notes (read-only display) ─────────────────────────────────────
+
+async function loadHypatiaNotesDisplay() {
+  const el = document.getElementById('hypatia-notes-display');
+  const clearBtn = document.getElementById('hypatia-notes-clear-btn');
+  if (!el) return;
+  try {
+    const r = await api('GET', '/api/hypatia/me/hypatia-notes');
+    if (r.notes) {
+      el.innerHTML = '';
+      el.classList.add('has-notes');
+      // Render markdown-ish — just preserve line breaks and bold
+      const html = r.notes
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+      el.innerHTML = html;
+      if (clearBtn) clearBtn.style.display = '';
+    } else {
+      el.innerHTML = '<span class="hypatia-notes-empty">No notes yet — start a conversation with Hypatia.</span>';
+      el.classList.remove('has-notes');
+      if (clearBtn) clearBtn.style.display = 'none';
+    }
+  } catch {
+    el.innerHTML = '<span class="hypatia-notes-empty">Could not load notes.</span>';
+  }
+}
+
+async function clearHypatiaNotesConfirm() {
+  if (!confirm('Clear Hypatia\'s notes about you? She will start fresh after your next conversation.')) return;
+  try {
+    await api('DELETE', '/api/hypatia/me/hypatia-notes');
+    await loadHypatiaNotesDisplay();
+  } catch {}
 }
 
 async function loadAiPrefs() {

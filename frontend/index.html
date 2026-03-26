@@ -300,6 +300,19 @@
             <button class="btn-primary" onclick="saveAiPrefs()">Save Preferences</button>
             <span id="ai-prefs-msg" class="form-hint"></span>
           </div>
+
+          <!-- Hypatia's Notes (read-only) -->
+          <div class="ai-pref-section" style="margin-top:36px">
+            <div class="admin-section-title">Hypatia's Notes About You</div>
+            <p style="font-size:12px;color:var(--subtext);margin-bottom:12px">
+              Written by Hypatia at the end of each conversation — what she's observed about how you work.
+              You can read and clear these, but editing them is intentionally not supported.
+            </p>
+            <div id="hypatia-notes-display" class="hypatia-notes-display">
+              <span class="hypatia-notes-empty">No notes yet — start a conversation with Hypatia.</span>
+            </div>
+            <button class="btn-danger-sm" id="hypatia-notes-clear-btn" onclick="clearHypatiaNotesConfirm()" style="display:none;margin-top:10px">Clear Notes</button>
+          </div>
         </div>
 
       </div>
@@ -698,6 +711,7 @@
         <div class="hypatia-sidebar-sub">CHAOS LIBRARIAN</div>
       </div>
       <button class="hypatia-font-toggle" id="font-toggle-btn" onclick="toggleFontExpression()" style="display:none">Aa</button>
+      <button class="chat-new-btn" id="chat-new-btn" onclick="newConversation()" title="New conversation">&#8635;</button>
     </div>
     <div id="chat-messages"></div>
     <div id="chat-form-wrap">
