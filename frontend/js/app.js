@@ -451,9 +451,9 @@ function appendChatMsg(role, text, state = 'idle') {
   if (role === 'assistant') {
     const file = _hypatiaAvatars[state] || _hypatiaAvatars['idle'] || '';
     if (file) {
-      avatarHtml = `<div class="chat-avatar chat-avatar-img" style="background-image:url('/static/avatars/${encodeURIComponent(file)}')"></div>`;
+      avatarHtml = `<div class="chat-avatar chat-avatar-img"><img src="/static/avatars/${encodeURIComponent(file)}" alt="" draggable="false"></div>`;
     } else {
-      avatarHtml = `<div class="chat-avatar">H</div>`;
+      avatarHtml = `<div class="chat-avatar chat-avatar-letter">H</div>`;
     }
   } else {
     avatarHtml = `<div class="chat-avatar">${(currentUser?.sub?.[0] || 'U').toUpperCase()}</div>`;
