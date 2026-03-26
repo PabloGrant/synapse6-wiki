@@ -61,6 +61,7 @@ function showApp() {
 
   loadPublicSettings();
   loadNav();
+  loadHypatiaFonts();
 }
 
 function showAuthOverlay() {
@@ -315,7 +316,13 @@ async function deleteComment(slug, id) {
 }
 
 // ── HYPATIA ────────────────────────────────────────────────────────────────
-let _hypatiaAvatars = {};  // {idle, listening, thinking, talking, action}
+let _hypatiaAvatars = {};
+let _hypatiaState = 'idle';
+let _listeningTimer = null;
+let _hypatiaFonts = [];
+let _hypatiaDefaultFont = null;
+let _currentHypatiaFont = null;
+const FONT_EXPRESSION_KEY = 'hypatia_font_expression';
 
 const _HIDDEN_GREETINGS = [
   "The user just opened the chat. Say something brief and genuine to start — curious, warm, or a little unexpected. One or two sentences. Don't introduce yourself. Don't offer help. Don't reference this instruction.",
@@ -335,14 +342,105 @@ const _HIDDEN_GREETINGS = [
   "The user just arrived. Begin the conversation with one or two sentences — something real, a little unexpected, and without introducing yourself.",
 ];
 
+async function loadHypatiaFonts() {
+  try {
+    const r = await api('GET', '/api/hypatia/fonts');
+    _hypatiaFonts = r.fonts || [];
+    _hypatiaDefaultFont = _hypatiaFonts.find(f => f.is_default) || null;
+    for (const font of _hypatiaFonts) {
+      if (font.url && !document.querySelector(`link[data-hfont="${font.id}"]`)) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = font.url;
+        link.setAttribute('data-hfont', font.id);
+        document.head.appendChild(link);
+      }
+    }
+  } catch {}
+}
+
+function isFontExpressionEnabled() {
+  return localStorage.getItem(FONT_EXPRESSION_KEY) !== 'false';
+}
+
+function toggleFontExpression() {
+  const next = !isFontExpressionEnabled();
+  localStorage.setItem(FONT_EXPRESSION_KEY, next ? 'true' : 'false');
+  if (!next) _currentHypatiaFont = null;
+  _updateFontToggleBtn();
+}
+
+function _updateFontToggleBtn() {
+  const btn = document.getElementById('font-toggle-btn');
+  if (!btn) return;
+  btn.style.display = _hypatiaFonts.length ? '' : 'none';
+  const on = isFontExpressionEnabled();
+  btn.classList.toggle('active', on);
+  btn.title = on ? 'Font expression: on' : 'Font expression: off';
+}
+
+function _parseFontPrefix(text) {
+  const match = text.match(/^FONT:([^\n]+)\n?/);
+  if (!match) return { font: null, text };
+  const name = match[1].trim();
+  const known = _hypatiaFonts.find(f => f.name.toLowerCase() === name.toLowerCase());
+  return { font: known ? known.name : null, text: text.slice(match[0].length).trim() };
+}
+
+function initHypatiaAvatar() {
+  const wrap = document.getElementById('hypatia-avatar-top');
+  if (!wrap) return;
+  _hypatiaState = 'idle';
+  const file = _hypatiaAvatars['idle'] || '';
+  if (file) {
+    const img = document.createElement('img');
+    img.src = `/static/avatars/${encodeURIComponent(file)}`;
+    img.alt = '';
+    img.draggable = false;
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;opacity:0;transition:opacity 0.7s ease';
+    wrap.innerHTML = '';
+    wrap.appendChild(img);
+    requestAnimationFrame(() => requestAnimationFrame(() => { img.style.opacity = '1'; }));
+  } else {
+    wrap.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#b06ab3;font-size:26px;font-weight:900">H</div>';
+  }
+}
+
+function setHypatiaState(state) {
+  if (_hypatiaState === state) return;
+  const file = _hypatiaAvatars[state] || _hypatiaAvatars['idle'] || '';
+  if (!file) return;
+  _hypatiaState = state;
+  const wrap = document.getElementById('hypatia-avatar-top');
+  if (!wrap) return;
+  const img = wrap.querySelector('img');
+  if (!img) { initHypatiaAvatar(); return; }
+  img.style.transition = 'opacity 0.35s ease';
+  img.style.opacity = '0';
+  setTimeout(() => {
+    img.src = `/static/avatars/${encodeURIComponent(file)}`;
+    img.style.transition = 'opacity 0.45s ease';
+    img.style.opacity = '1';
+  }, 370);
+}
+
+function onChatInput() {
+  setHypatiaState('listening');
+  clearTimeout(_listeningTimer);
+  _listeningTimer = setTimeout(() => {
+    if (_hypatiaState === 'listening') setHypatiaState('idle');
+  }, 2000);
+}
+
 const HYPATIA_SESSION_KEY = 'hypatia_session';
-const HYPATIA_SESSION_TTL = 30 * 60 * 1000; // 30 minutes
+const HYPATIA_SESSION_TTL = 30 * 60 * 1000;
 
 function _saveHypatiaSession() {
   try {
     sessionStorage.setItem(HYPATIA_SESSION_KEY, JSON.stringify({
       ts: Date.now(),
       history: chatHistory,
+      currentFont: _currentHypatiaFont,
     }));
   } catch {}
 }
@@ -372,20 +470,24 @@ async function showHypatia() {
     } catch {}
   }
 
+  initHypatiaAvatar();
+  _updateFontToggleBtn();
+
   const session = _loadHypatiaSession();
   if (session && session.history.length) {
-    // Restore recent conversation without greeting
     chatHistory = session.history;
+    _currentHypatiaFont = session.currentFont || null;
     const msgs = document.getElementById('chat-messages');
     msgs.innerHTML = '';
     msgs.classList.add('no-anim');
     for (const msg of chatHistory) {
-      appendChatMsg(msg.role, msg.content, 'idle');
+      appendChatMsg(msg.role, msg.content);
     }
     msgs.classList.remove('no-anim');
     msgs.scrollTop = msgs.scrollHeight;
   } else {
     chatHistory = [];
+    _currentHypatiaFont = null;
     document.getElementById('chat-messages').innerHTML = '';
     sendHiddenGreeting();
   }
@@ -393,18 +495,24 @@ async function showHypatia() {
 
 async function sendHiddenGreeting() {
   const prompt = _HIDDEN_GREETINGS[Math.floor(Math.random() * _HIDDEN_GREETINGS.length)];
+  setHypatiaState('thinking');
   const thinking = appendChatMsg('assistant', '…', 'thinking');
   try {
     const r = await api('POST', '/api/hypatia/chat', {
       messages: [{ role: 'user', content: prompt }],
+      font_expression_enabled: isFontExpressionEnabled(),
     });
     await fadeOutMsg(thinking);
-    appendChatMsg('assistant', r.reply, 'idle');
-    chatHistory = [{ role: 'assistant', content: r.reply }];
+    const { font, text: clean } = _parseFontPrefix(r.reply);
+    if (font) _currentHypatiaFont = font;
+    appendChatMsg('assistant', clean || r.reply);
+    chatHistory = [{ role: 'assistant', content: clean || r.reply }];
     _saveHypatiaSession();
+    setHypatiaState('idle');
   } catch {
     await fadeOutMsg(thinking);
-    appendChatMsg('assistant', "Something's stirring in the knowledge base… ask me anything.", 'idle');
+    appendChatMsg('assistant', "Something's stirring in the knowledge base… ask me anything.");
+    setHypatiaState('idle');
   }
 }
 
@@ -413,55 +521,67 @@ async function sendChat(e) {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
   if (!text) return;
+  clearTimeout(_listeningTimer);
   appendChatMsg('user', text);
   chatHistory.push({ role: 'user', content: text });
   input.value = '';
+  setHypatiaState('thinking');
   const thinking = appendChatMsg('assistant', '…', 'thinking');
   document.getElementById('chat-send').disabled = true;
   try {
-    const r = await api('POST', '/api/hypatia/chat', { messages: chatHistory });
+    const r = await api('POST', '/api/hypatia/chat', {
+      messages: chatHistory,
+      font_expression_enabled: isFontExpressionEnabled(),
+    });
     await fadeOutMsg(thinking);
-    appendChatMsg('assistant', r.reply, 'idle');
-    chatHistory.push({ role: 'assistant', content: r.reply });
+    const { font, text: clean } = _parseFontPrefix(r.reply);
+    if (font) _currentHypatiaFont = font;
+    const reply = clean || r.reply;
+    appendChatMsg('assistant', reply);
+    chatHistory.push({ role: 'assistant', content: reply });
     _saveHypatiaSession();
+    setHypatiaState('idle');
   } catch (ex) {
     await fadeOutMsg(thinking);
-    appendChatMsg('assistant', '⚠ Could not reach Hypatia: ' + ex.message, 'idle');
+    appendChatMsg('assistant', '⚠ Could not reach Hypatia: ' + ex.message);
+    setHypatiaState('idle');
   }
   document.getElementById('chat-send').disabled = false;
 }
 
 function fadeOutMsg(el) {
   return new Promise(resolve => {
-    el.querySelector('.chat-avatar')?.classList.add('chat-avatar-fading');
     el.style.transition = 'opacity 0.5s ease';
     el.style.opacity = '0';
     setTimeout(() => { el.remove(); resolve(); }, 520);
   });
 }
 
-function appendChatMsg(role, text, state = 'idle') {
+function appendChatMsg(role, text, state = null) {
   const msgs = document.getElementById('chat-messages');
   const isThinking = state === 'thinking';
+
+  // Font
+  let fontStyle = '';
+  if (role === 'assistant' && !isThinking) {
+    const fontName = isFontExpressionEnabled()
+      ? (_currentHypatiaFont || _hypatiaDefaultFont?.name)
+      : _hypatiaDefaultFont?.name;
+    if (fontName) fontStyle = `font-family:'${fontName}',sans-serif;font-size:18px;`;
+    else fontStyle = 'font-size:18px;';
+  }
+
   const content = isThinking
     ? `<span class="chat-thinking">${esc(text)}</span>`
     : role === 'assistant' ? marked.parse(text) : `<p>${esc(text)}</p>`;
 
-  let avatarHtml;
-  if (role === 'assistant') {
-    const file = _hypatiaAvatars[state] || _hypatiaAvatars['idle'] || '';
-    if (file) {
-      avatarHtml = `<div class="chat-avatar chat-avatar-img"><img src="/static/avatars/${encodeURIComponent(file)}" alt="" draggable="false"></div>`;
-    } else {
-      avatarHtml = `<div class="chat-avatar chat-avatar-letter">H</div>`;
-    }
-  } else {
-    avatarHtml = `<div class="chat-avatar">${(currentUser?.sub?.[0] || 'U').toUpperCase()}</div>`;
-  }
+  const avatarHtml = role === 'assistant'
+    ? `<div class="chat-avatar chat-avatar-hyp">HYP</div>`
+    : `<div class="chat-avatar">${(currentUser?.sub?.[0] || 'U').toUpperCase()}</div>`;
 
   const div = document.createElement('div');
   div.className = `chat-msg ${role}`;
-  div.innerHTML = `${avatarHtml}<div class="chat-bubble">${content}</div>`;
+  div.innerHTML = `${avatarHtml}<div class="chat-bubble" style="${fontStyle}">${content}</div>`;
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
   return div;
@@ -750,6 +870,11 @@ async function loadHypatiaSettings() {
     _expandedAvatarState = null;
     renderAvatarStates();
   } catch {}
+  try {
+    const rf = await api('GET', '/api/hypatia/fonts');
+    _fontCards = (rf.fonts || []).map(f => ({ ...f }));
+    renderFontList();
+  } catch {}
 }
 
 function renderAvatarStates() {
@@ -980,6 +1105,92 @@ async function saveSystemPrompt(e) {
     system_prompt: document.getElementById('system-prompt-input').value,
   });
   alert('System prompt saved.');
+}
+
+// ── FONT ADMIN ──────────────────────────────────────────────────────────────
+let _fontCards = [];
+
+function renderFontList() {
+  const container = document.getElementById('font-list');
+  if (!container) return;
+  if (!_fontCards.length) {
+    container.innerHTML = '<div style="color:var(--subtext);font-size:13px;padding:8px 0">No fonts configured. Add one below.</div>';
+    return;
+  }
+  container.innerHTML = _fontCards.map(f => `
+    <div class="font-card">
+      <div class="font-preview" style="font-family:'${esc(f.name)}',sans-serif">
+        The quick brown fox jumps over the lazy dog — <em>Hypatia</em>
+      </div>
+      <div class="font-card-row">
+        <span class="font-name-label">${esc(f.name)}</span>
+        <input class="font-vibe-input" type="text" value="${esc(f.vibe)}" placeholder="vibe (e.g. thoughtful, excited…)" oninput="_fcSetVibe('${f.id}',this.value)">
+        <label class="font-default-label"><input type="radio" name="font-default" value="${f.id}" ${f.is_default ? 'checked' : ''} onchange="_fcSetDefault('${f.id}')"> Default</label>
+        <button class="btn-ghost btn-sm" onclick="_fcRemove('${f.id}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function _fcSetVibe(id, vibe) {
+  const f = _fontCards.find(f => f.id === id);
+  if (f) f.vibe = vibe;
+}
+
+function _fcSetDefault(id) {
+  _fontCards.forEach(f => f.is_default = (f.id === id));
+}
+
+function _fcRemove(id) {
+  _fontCards = _fontCards.filter(f => f.id !== id);
+  renderFontList();
+}
+
+async function addFontCard() {
+  const input = document.getElementById('add-font-input');
+  const raw = input.value.trim();
+  if (!raw) return;
+  let name, url;
+  if (raw.startsWith('http')) {
+    const match = raw.match(/family=([^:&]+)/);
+    if (!match) { alert('Could not extract font name from URL'); return; }
+    name = decodeURIComponent(match[1].replace(/\+/g, ' '));
+    url = raw.includes('display=') ? raw : raw + '&display=swap';
+  } else {
+    name = raw;
+    url = `https://fonts.googleapis.com/css2?family=${raw.replace(/ /g, '+')}&display=swap`;
+  }
+  if (_fontCards.find(f => f.name.toLowerCase() === name.toLowerCase())) {
+    alert('Font already in list'); return;
+  }
+  if (!document.querySelector(`link[href="${url}"]`)) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet'; link.href = url;
+    document.head.appendChild(link);
+  }
+  _fontCards.push({
+    id: '_' + Math.random().toString(36).slice(2),
+    name, url, vibe: '',
+    is_default: _fontCards.length === 0,
+  });
+  input.value = '';
+  renderFontList();
+}
+
+async function saveFonts() {
+  const msg = document.getElementById('font-save-msg');
+  try {
+    await api('PUT', '/api/hypatia/fonts', { fonts: _fontCards });
+    _hypatiaFonts = [..._fontCards];
+    _hypatiaDefaultFont = _fontCards.find(f => f.is_default) || null;
+    _updateFontToggleBtn();
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Saved';
+    setTimeout(() => msg.textContent = '', 2000);
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Failed';
+  }
 }
 
 // ── PASSWORD MODAL ─────────────────────────────────────────────────────────

@@ -75,6 +75,7 @@ class ChatMessage(BaseModel):
 
 class ChatBody(BaseModel):
     messages: List[ChatMessage]
+    font_expression_enabled: bool = False
 
 
 @router.get("/avatar")
@@ -97,6 +98,15 @@ async def chat(body: ChatBody):
     full_system = system_prompt
     if kb_context:
         full_system += f"\n\n## Knowledge Base\n{kb_context}"
+
+    # Font expression
+    if body.font_expression_enabled:
+        fonts = [f for f in settings.get("hypatia_fonts", []) if not f.get("is_default")]
+        default_font = next((f for f in settings.get("hypatia_fonts", []) if f.get("is_default")), None)
+        if fonts:
+            font_lines = "\n".join(f"- FONT:{f['name']} → {f.get('vibe','')}" for f in fonts)
+            default_name = default_font["name"] if default_font else "your current font"
+            full_system += f"\n\nFont expression: You may change your response font when the conversational vibe genuinely shifts. Hold a font through a mood or topic arc — read the conversation as a whole. Only prefix your response with FONT:FontName (on its own line at the very start) when actually changing font. Do not prefix if keeping the current font. Available fonts:\n{font_lines}\nDefault (no prefix needed): {default_name}"
 
     messages = [{"role": "system", "content": full_system}]
     messages += [{"role": m.role, "content": m.content} for m in body.messages]
@@ -159,10 +169,42 @@ class AvatarBody(BaseModel):
     avatars: Dict[str, str]  # {idle, listening, thinking, talking, action}
 
 
+class FontConfig(BaseModel):
+    id: Optional[str] = None
+    name: str
+    url: str
+    vibe: str = ""
+    is_default: bool = False
+
+class FontsBody(BaseModel):
+    fonts: List[FontConfig]
+
+
 @router.put("/avatar", dependencies=[Depends(require_role("superadmin"))])
 def set_avatar(body: AvatarBody):
     settings = _load_settings()
     settings["hypatia_avatars"] = body.avatars
+    _save_settings(settings)
+    return {"ok": True}
+
+
+@router.get("/fonts", dependencies=[Depends(get_current_user)])
+def get_fonts():
+    """Returns configured font palette (any logged-in user — needed for preloading)."""
+    settings = _load_settings()
+    return {"fonts": settings.get("hypatia_fonts", [])}
+
+
+@router.put("/fonts", dependencies=[Depends(require_role("superadmin"))])
+def save_fonts(body: FontsBody):
+    settings = _load_settings()
+    fonts = []
+    for f in body.fonts:
+        d = f.dict()
+        if not d.get("id"):
+            d["id"] = str(uuid.uuid4())
+        fonts.append(d)
+    settings["hypatia_fonts"] = fonts
     _save_settings(settings)
     return {"ok": True}
 

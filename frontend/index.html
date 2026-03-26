@@ -129,12 +129,16 @@
     <!-- HYPATIA PAGE -->
     <div id="hypatia-view" class="hidden">
       <div class="hypatia-header">
-        <div class="hypatia-title">HYPATIA</div>
-        <div class="hypatia-sub">Chaos Librarian</div>
+        <div id="hypatia-avatar-top"></div>
+        <div class="hypatia-name-block">
+          <div class="hypatia-title">HYPATIA</div>
+          <div class="hypatia-sub">Chaos Librarian</div>
+        </div>
+        <button class="hypatia-font-toggle" id="font-toggle-btn" onclick="toggleFontExpression()" style="display:none">Aa</button>
       </div>
       <div id="chat-messages"></div>
       <form id="chat-form" onsubmit="sendChat(event)">
-        <textarea id="chat-input" placeholder="Ask Hypatia…" rows="2" onkeydown="chatKeydown(event)"></textarea>
+        <textarea id="chat-input" placeholder="Ask Hypatia…" rows="2" onkeydown="chatKeydown(event)" oninput="onChatInput()"></textarea>
         <button type="submit" class="btn-primary" id="chat-send">Send</button>
       </form>
     </div>
@@ -228,6 +232,19 @@
 
       <!-- SA HYPATIA TAB -->
       <div id="admin-sa-hypatia" class="admin-tab-content hidden">
+
+        <div class="model-section-header">
+          <div class="admin-section-title" style="margin:0">Expression Fonts <span class="model-hint">(Hypatia's emotional palette)</span></div>
+        </div>
+        <div id="font-list" style="margin-bottom:8px"></div>
+        <div class="inline-form" style="margin-bottom:8px">
+          <input type="text" id="add-font-input" placeholder="Font name or Google Fonts URL" style="flex:1">
+          <button class="btn-ghost" onclick="addFontCard()">+ Add Font</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:32px">
+          <button class="btn-primary" onclick="saveFonts()">Save Fonts</button>
+          <span id="font-save-msg" class="form-error"></span>
+        </div>
 
         <div class="model-section-header">
           <div class="admin-section-title" style="margin:0">Chat Models <span class="model-hint">(fallback order — first healthy model is used)</span></div>
