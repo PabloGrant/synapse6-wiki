@@ -256,15 +256,71 @@ def _assemble_system(settings: dict) -> str:
     return "\n\n---\n\n".join(parts) if parts else _default_system_prompt()
 
 
-@router.post("/chat", dependencies=[Depends(get_current_user)])
-async def chat(body: ChatBody):
+def _load_user_profile(username: str) -> str:
+    """Load a user's .md profile for context injection. Returns empty string if not set."""
+    md_path = os.path.join(DATA_DIR, "hypatia", "memory", "users", f"{username}.md")
+    if os.path.exists(md_path):
+        try:
+            with open(md_path) as f:
+                return f.read().strip()
+        except Exception:
+            pass
+    return ""
+
+
+def _load_team_profiles(current_username: str) -> str:
+    """Load all other users' profiles as brief context for cross-user references."""
+    mem_dir = os.path.join(DATA_DIR, "hypatia", "memory", "users")
+    if not os.path.exists(mem_dir):
+        return ""
+    entries = []
+    for fname in sorted(os.listdir(mem_dir)):
+        if not fname.endswith(".json"):
+            continue
+        username = fname[:-5]
+        if username == current_username:
+            continue
+        try:
+            with open(os.path.join(mem_dir, fname)) as f:
+                p = json.load(f)
+        except Exception:
+            continue
+        display = p.get("display_name") or username
+        parts = []
+        if p.get("focus_area"):
+            parts.append(f"Focus: {p['focus_area']}")
+        if p.get("title"):
+            parts.append(f"Role: {p['title']}")
+        strengths = [s for s in p.get("strengths", []) if s.strip()]
+        if strengths:
+            parts.append(f"Strengths: {', '.join(strengths)}")
+        help_areas = [h for h in p.get("help_areas", []) if h.strip()]
+        if help_areas:
+            parts.append(f"Needs support with: {', '.join(help_areas)}")
+        entry = f"**{display}** (username: {username})"
+        if parts:
+            entry += " — " + " | ".join(parts)
+        entries.append(entry)
+    if not entries:
+        return ""
+    return "## Team Profiles\n\nThese are your colleagues. When a user mentions working with someone, you can reference their focus and strengths by display name.\n\n" + "\n".join(entries)
+
+
+@router.post("/chat")
+async def chat(body: ChatBody, user=Depends(get_current_user)):
     settings = _load_settings()
     system_prompt = _assemble_system(settings)
 
     messages_raw = [{"role": m.role, "content": m.content} for m in body.messages]
     kb_context = await _retrieve_context(messages_raw, settings)
+    user_profile = _load_user_profile(user["sub"])
+    team_profiles = _load_team_profiles(user["sub"])
 
     full_system = system_prompt
+    if user_profile:
+        full_system += f"\n\n## Who You're Talking To\n{user_profile}"
+    if team_profiles:
+        full_system += f"\n\n{team_profiles}"
     if kb_context:
         full_system += f"\n\n## Relevant Knowledge Base Content\n{kb_context}"
 

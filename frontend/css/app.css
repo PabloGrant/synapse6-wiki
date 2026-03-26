@@ -838,8 +838,65 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .library-overlap-score { font-size: 11px; font-weight: 700; color: var(--green); white-space: nowrap; }
 .library-overlap-snippet { font-size: 12px; color: var(--subtext); line-height: 1.55; }
 
+/* ── AI PREFERENCES FORM ── */
+.ai-pref-section {
+  margin-bottom: 28px;
+}
+.ai-pref-section-title {
+  font-size: 12px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--green); margin-bottom: 14px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--border);
+}
+.ai-pref-field {
+  margin-bottom: 14px;
+}
+.ai-pref-label {
+  display: block; font-size: 13px; font-weight: 500;
+  color: var(--text); margin-bottom: 5px;
+}
+.ai-pref-input {
+  width: 100%; padding: 8px 10px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-size: 13px; outline: none;
+  transition: border-color 0.15s;
+}
+.ai-pref-input:focus { border-color: var(--green); }
+.ai-pref-trio {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+}
+.ai-pref-trio .ai-pref-input { width: 100%; }
+.ai-pref-radio-group {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px;
+}
+.ai-pref-radio {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 20px;
+  padding: 5px 12px; cursor: pointer; font-size: 13px; color: var(--subtext);
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  user-select: none;
+}
+.ai-pref-radio input[type="radio"] { display: none; }
+.ai-pref-radio:has(input:checked) {
+  border-color: var(--green); color: var(--green); background: var(--tag-bg);
+}
+.ai-pref-textarea {
+  width: 100%; min-height: 90px; resize: vertical;
+  padding: 9px 10px; background: var(--bg);
+  border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-size: 13px; font-family: inherit; outline: none;
+  transition: border-color 0.15s;
+  line-height: 1.5;
+}
+.ai-pref-textarea:focus { border-color: var(--green); }
+.ai-pref-save-hint {
+  font-size: 12px; color: var(--green); margin-top: 4px;
+  min-height: 18px;
+}
+
+
 @media (max-width: 780px) {
   #editor-wrap { flex-direction: column; height: auto; }
   #editor { min-height: 300px; }
   #main { padding: 20px 20px 60px; }
+  .ai-pref-trio { grid-template-columns: 1fr; }
 }

@@ -620,6 +620,7 @@ function showAdminPanel() {
   }
   document.getElementById('profile-name').value = currentUser?.display_name || '';
   switchAdminTab('profile');
+  switchProfileTab('profile');
   if (isAdmin) loadAdminUsers();
 }
 
@@ -633,6 +634,62 @@ function switchAdminTab(tab) {
   if (tab === 'sa-users') loadSAUsers();
   if (tab === 'sa-site') loadSiteSettings();
   if (tab === 'sa-hypatia') { loadHypatiaSettings(); switchHypatiaTab('profile'); }
+}
+
+// ── Profile subtabs ────────────────────────────────────────────────────────
+const ALL_PROFILE_TABS = ['profile', 'ai-prefs'];
+function switchProfileTab(tab) {
+  ALL_PROFILE_TABS.forEach(t => {
+    document.getElementById(`ptab-btn-${t}`)?.classList.toggle('active', t === tab);
+    document.getElementById(`ptab-${t}`)?.classList.toggle('hidden', t !== tab);
+  });
+  if (tab === 'ai-prefs') loadAiPrefs();
+}
+
+async function loadAiPrefs() {
+  try {
+    const s = await api('GET', '/api/auth/me/ai-prefs');
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    set('pref-name',     s.preferred_name);
+    set('pref-focus',    s.focus_area);
+    set('pref-title',    s.title);
+    set('pref-freeform', s.freeform);
+    [0,1,2].forEach(i => {
+      set(`pref-strength-${i}`, (s.strengths || [])[i] || '');
+      set(`pref-help-${i}`,     (s.help_areas || [])[i] || '');
+    });
+    // Radio buttons
+    const commEl = document.querySelector(`input[name="comm-style"][value="${s.comm_style || 'detailed'}"]`);
+    if (commEl) commEl.checked = true;
+    const techEl = document.querySelector(`input[name="tech-depth"][value="${s.tech_depth || 'some'}"]`);
+    if (techEl) techEl.checked = true;
+  } catch {}
+}
+
+async function saveAiPrefs() {
+  const msg = document.getElementById('ai-prefs-msg');
+  msg.textContent = '';
+  const get = id => (document.getElementById(id)?.value || '').trim();
+  const getRadio = name => document.querySelector(`input[name="${name}"]:checked`)?.value || '';
+  const body = {
+    preferred_name: get('pref-name'),
+    focus_area:     get('pref-focus'),
+    title:          get('pref-title'),
+    strengths:      [0,1,2].map(i => get(`pref-strength-${i}`)),
+    help_areas:     [0,1,2].map(i => get(`pref-help-${i}`)),
+    comm_style:     getRadio('comm-style') || 'detailed',
+    tech_depth:     getRadio('tech-depth') || 'some',
+    freeform:       get('pref-freeform'),
+  };
+  try {
+    await api('PUT', '/api/auth/me/ai-prefs', body);
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Saved — Hypatia will use this in your next conversation';
+    setTimeout(() => msg.textContent = '', 3000);
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Save failed';
+  }
 }
 
 const ALL_HYPATIA_TABS = ['profile','models','skills','connections','system-prompts','memory'];

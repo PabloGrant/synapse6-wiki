@@ -203,20 +203,105 @@
 
       <!-- PROFILE TAB -->
       <div id="admin-profile" class="admin-tab-content">
-        <div class="admin-section-title">Display Name</div>
-        <form onsubmit="saveProfile(event)" class="inline-form" style="margin-bottom:28px">
-          <input type="text" id="profile-name" placeholder="Display name">
-          <button type="submit" class="btn-primary">Save</button>
-          <span id="profile-msg" class="form-hint" style="margin-left:8px"></span>
-        </form>
-        <div class="admin-section-title">Change Password</div>
-        <form onsubmit="changeOwnPassword(event)" class="col-form" style="max-width:360px">
-          <input type="password" id="own-pw-current" placeholder="Current password" required autocomplete="current-password">
-          <input type="password" id="own-pw-new" placeholder="New password (min 8 characters)" required autocomplete="new-password">
-          <input type="password" id="own-pw-confirm" placeholder="Confirm new password" required>
-          <div id="own-pw-msg" class="form-error"></div>
-          <button type="submit" class="btn-primary" style="width:fit-content">Change Password</button>
-        </form>
+        <div class="subtabs" id="profile-subtabs">
+          <button class="subtab active" id="ptab-btn-profile" onclick="switchProfileTab('profile')">Profile</button>
+          <button class="subtab"        id="ptab-btn-ai-prefs" onclick="switchProfileTab('ai-prefs')">AI Preferences</button>
+        </div>
+
+        <!-- Profile subtab -->
+        <div id="ptab-profile" class="hytab-content">
+          <div class="admin-section-title">Display Name</div>
+          <form onsubmit="saveProfile(event)" class="inline-form" style="margin-bottom:28px">
+            <input type="text" id="profile-name" placeholder="Display name">
+            <button type="submit" class="btn-primary">Save</button>
+            <span id="profile-msg" class="form-hint" style="margin-left:8px"></span>
+          </form>
+          <div class="admin-section-title">Change Password</div>
+          <form onsubmit="changeOwnPassword(event)" class="col-form" style="max-width:360px">
+            <input type="password" id="own-pw-current" placeholder="Current password" required autocomplete="current-password">
+            <input type="password" id="own-pw-new" placeholder="New password (min 8 characters)" required autocomplete="new-password">
+            <input type="password" id="own-pw-confirm" placeholder="Confirm new password" required>
+            <div id="own-pw-msg" class="form-error"></div>
+            <button type="submit" class="btn-primary" style="width:fit-content">Change Password</button>
+          </form>
+        </div>
+
+        <!-- AI Preferences subtab -->
+        <div id="ptab-ai-prefs" class="hytab-content hidden">
+          <p style="font-size:13px;color:var(--subtext);margin-bottom:24px;max-width:620px">
+            Help Hypatia get to know you. The more she understands your role and working style,
+            the more useful she becomes. This builds your personal profile — only you and Hypatia can see it.
+          </p>
+
+          <div class="ai-pref-section">
+            <div class="admin-section-title">Introductions</div>
+            <div class="ai-pref-field">
+              <label class="ai-pref-label">What should Hypatia call you?</label>
+              <input type="text" id="pref-name" class="ai-pref-input" placeholder="Preferred name or nickname">
+            </div>
+            <div class="ai-pref-field">
+              <label class="ai-pref-label">What area(s) of Synapse6 are you most focused on?</label>
+              <input type="text" id="pref-focus" class="ai-pref-input" placeholder="e.g. Development, Finance, Governance, Investment, Operations…">
+            </div>
+            <div class="ai-pref-field">
+              <label class="ai-pref-label">Your role or title</label>
+              <input type="text" id="pref-title" class="ai-pref-input" placeholder="e.g. CTO, Portfolio Manager, Operations Lead">
+            </div>
+          </div>
+
+          <div class="ai-pref-section">
+            <div class="admin-section-title">Expertise &amp; Support</div>
+            <div class="ai-pref-field">
+              <label class="ai-pref-label">Three things I'm good at <span class="model-hint">— Hypatia can lean on these</span></label>
+              <div class="ai-pref-trio">
+                <input type="text" id="pref-strength-0" class="ai-pref-input" placeholder="e.g. Strategic thinking">
+                <input type="text" id="pref-strength-1" class="ai-pref-input" placeholder="e.g. Financial modelling">
+                <input type="text" id="pref-strength-2" class="ai-pref-input" placeholder="e.g. Team leadership">
+              </div>
+            </div>
+            <div class="ai-pref-field">
+              <label class="ai-pref-label">Three things where I benefit from extra help <span class="model-hint">— Hypatia fills in the gaps</span></label>
+              <div class="ai-pref-trio">
+                <input type="text" id="pref-help-0" class="ai-pref-input" placeholder="e.g. Technical implementation detail">
+                <input type="text" id="pref-help-1" class="ai-pref-input" placeholder="e.g. Regulatory frameworks">
+                <input type="text" id="pref-help-2" class="ai-pref-input" placeholder="e.g. Data analysis">
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-pref-section">
+            <div class="admin-section-title">Communication Style</div>
+            <div class="ai-pref-field">
+              <label class="ai-pref-label">How do you prefer to receive information?</label>
+              <div class="ai-pref-radio-group">
+                <label class="ai-pref-radio"><input type="radio" name="comm-style" id="pref-comm-brief" value="brief"> <span><strong>Brief and direct</strong> — give me the answer, skip the background</span></label>
+                <label class="ai-pref-radio"><input type="radio" name="comm-style" id="pref-comm-detailed" value="detailed" checked> <span><strong>Detailed</strong> — I want full context and reasoning</span></label>
+                <label class="ai-pref-radio"><input type="radio" name="comm-style" id="pref-comm-conversational" value="conversational"> <span><strong>Conversational</strong> — let's think through it together</span></label>
+              </div>
+            </div>
+            <div class="ai-pref-field">
+              <label class="ai-pref-label">Technical depth</label>
+              <div class="ai-pref-radio-group">
+                <label class="ai-pref-radio"><input type="radio" name="tech-depth" id="pref-tech-none" value="none"> <span><strong>Non-technical</strong> — plain language, no jargon</span></label>
+                <label class="ai-pref-radio"><input type="radio" name="tech-depth" id="pref-tech-some" value="some" checked> <span><strong>Some context welcome</strong> — familiar but not expert</span></label>
+                <label class="ai-pref-radio"><input type="radio" name="tech-depth" id="pref-tech-technical" value="technical"> <span><strong>Technical</strong> — get into it, I can handle the details</span></label>
+                <label class="ai-pref-radio"><input type="radio" name="tech-depth" id="pref-tech-deep" value="deep"> <span><strong>Deep technical</strong> — assume deep expertise</span></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-pref-section">
+            <div class="admin-section-title">Anything else Hypatia should know</div>
+            <textarea id="pref-freeform" class="ai-pref-textarea" rows="5"
+              placeholder="Work style, current projects, background, how you think — anything that helps Hypatia be more useful to you…"></textarea>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:12px;margin-top:4px">
+            <button class="btn-primary" onclick="saveAiPrefs()">Save Preferences</button>
+            <span id="ai-prefs-msg" class="form-hint"></span>
+          </div>
+        </div>
+
       </div>
 
       <!-- USERS TAB -->
