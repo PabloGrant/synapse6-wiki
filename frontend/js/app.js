@@ -315,19 +315,20 @@ async function deleteComment(slug, id) {
 }
 
 // ── HYPATIA ────────────────────────────────────────────────────────────────
+let _hypatiaAvatars = {};  // {idle, listening, thinking, talking, action}
+
 async function showHypatia() {
   currentSlug = '__hypatia__';
   showView('hypatia');
   setActiveNav('__hypatia__');
-  // Load avatar if not yet cached
-  if (!_hypatiaAvatar) {
+  if (!Object.keys(_hypatiaAvatars).length) {
     try {
       const r = await api('GET', '/api/hypatia/avatar');
-      _hypatiaAvatar = r.avatar || '';
+      _hypatiaAvatars = r.avatars || {};
     } catch {}
   }
   if (!chatHistory.length) {
-    appendChatMsg('assistant', "Hi — I'm Hypatia. Ask me anything about Synapse6, the product, the team, or any topic in the knowledge base.");
+    appendChatMsg('assistant', "Hi — I'm Hypatia. Ask me anything about Synapse6, the product, the team, or any topic in the knowledge base.", 'idle');
   }
 }
 
@@ -339,32 +340,37 @@ async function sendChat(e) {
   appendChatMsg('user', text);
   chatHistory.push({ role: 'user', content: text });
   input.value = '';
-  const thinking = appendChatMsg('assistant', '…', true);
+  const thinking = appendChatMsg('assistant', '…', 'thinking');
   document.getElementById('chat-send').disabled = true;
   try {
     const r = await api('POST', '/api/hypatia/chat', { messages: chatHistory });
     thinking.remove();
-    appendChatMsg('assistant', r.reply);
+    appendChatMsg('assistant', r.reply, 'idle');
     chatHistory.push({ role: 'assistant', content: r.reply });
   } catch (ex) {
     thinking.remove();
-    appendChatMsg('assistant', '⚠ Could not reach Hypatia: ' + ex.message);
+    appendChatMsg('assistant', '⚠ Could not reach Hypatia: ' + ex.message, 'idle');
   }
   document.getElementById('chat-send').disabled = false;
 }
 
-function appendChatMsg(role, text, thinking = false) {
+function appendChatMsg(role, text, state = 'idle') {
   const msgs = document.getElementById('chat-messages');
-  const content = thinking
+  const isThinking = state === 'thinking';
+  const content = isThinking
     ? `<span class="chat-thinking">${esc(text)}</span>`
     : role === 'assistant' ? marked.parse(text) : `<p>${esc(text)}</p>`;
 
   let avatarHtml;
-  if (role === 'assistant' && _hypatiaAvatar) {
-    avatarHtml = `<div class="chat-avatar chat-avatar-img" style="background-image:url('/static/avatars/${encodeURIComponent(_hypatiaAvatar)}')"></div>`;
+  if (role === 'assistant') {
+    const file = _hypatiaAvatars[state] || _hypatiaAvatars['idle'] || '';
+    if (file) {
+      avatarHtml = `<div class="chat-avatar chat-avatar-img" style="background-image:url('/static/avatars/${encodeURIComponent(file)}')"></div>`;
+    } else {
+      avatarHtml = `<div class="chat-avatar">H</div>`;
+    }
   } else {
-    const initials = role === 'user' ? (currentUser?.sub?.[0] || 'U').toUpperCase() : 'H';
-    avatarHtml = `<div class="chat-avatar">${initials}</div>`;
+    avatarHtml = `<div class="chat-avatar">${(currentUser?.sub?.[0] || 'U').toUpperCase()}</div>`;
   }
 
   const div = document.createElement('div');
@@ -631,14 +637,22 @@ async function saveSiteSettings(e) {
   alert('Site settings saved.');
 }
 
-let _selectedAvatar = '';
-let _hypatiaAvatar = '';  // cached for chat display
+const AVATAR_STATES = [
+  { key: 'idle',      label: 'Idle' },
+  { key: 'listening', label: 'Listening' },
+  { key: 'thinking',  label: 'Thinking' },
+  { key: 'talking',   label: 'Talking' },
+  { key: 'action',    label: 'Action' },
+];
+let _selectedAvatars = {};   // {idle:'', listening:'', ...} — admin working copy
+let _allAvatarFiles = [];    // full file list for picker grid
+let _expandedAvatarState = null; // which state's picker is open
 
 async function loadHypatiaSettings() {
   try {
     const s = await api('GET', '/api/hypatia/settings');
     document.getElementById('system-prompt-input').value = s.system_prompt || '';
-    _selectedAvatar = s.avatar || '';
+    _selectedAvatars = s.avatars || {};
   } catch {}
   try {
     const r = await api('GET', '/api/hypatia/models');
@@ -646,30 +660,56 @@ async function loadHypatiaSettings() {
   } catch {}
   try {
     const r = await api('GET', '/api/hypatia/avatars');
-    renderAvatarPicker(r.avatars || [], _selectedAvatar);
+    _allAvatarFiles = r.avatars || [];
+    _expandedAvatarState = null;
+    renderAvatarStates();
   } catch {}
 }
 
-function renderAvatarPicker(avatars, selected) {
-  const el = document.getElementById('avatar-picker');
-  if (!avatars.length) { el.innerHTML = '<div style="color:var(--subtext);font-size:13px">No avatars found.</div>'; return; }
-  el.innerHTML = avatars.map(f => `
-    <div class="avatar-option ${f === selected ? 'selected' : ''}" onclick="selectAvatar('${f}')"
-      style="background-image:url('/static/avatars/${encodeURIComponent(f)}')"></div>
-  `).join('');
+function renderAvatarStates() {
+  const container = document.getElementById('avatar-states-list');
+  let html = '';
+  for (const { key, label } of AVATAR_STATES) {
+    const file = _selectedAvatars[key] || '';
+    const isOpen = _expandedAvatarState === key;
+    const previewStyle = file ? `background-image:url('/static/avatars/${encodeURIComponent(file)}')` : '';
+    html += `<div class="avatar-state-row">
+      <div class="avatar-state-preview" style="${previewStyle}">${file ? '' : '?'}</div>
+      <span class="avatar-state-label">${label}</span>
+      <button class="btn-ghost btn-sm" onclick="toggleAvatarPicker('${key}')">${isOpen ? 'Close ▲' : 'Change ▾'}</button>
+    </div>`;
+    if (isOpen) {
+      html += `<div class="avatar-state-grid">`;
+      if (!_allAvatarFiles.length) {
+        html += '<span style="color:var(--subtext);font-size:13px">No avatars found.</span>';
+      } else {
+        html += _allAvatarFiles.map(f => `
+          <div class="avatar-option ${f === file ? 'selected' : ''}"
+               onclick="selectStateAvatar('${key}','${f}')"
+               style="background-image:url('/static/avatars/${encodeURIComponent(f)}')"></div>
+        `).join('');
+      }
+      html += `</div>`;
+    }
+  }
+  container.innerHTML = html;
 }
 
-function selectAvatar(filename) {
-  _selectedAvatar = filename;
-  document.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
-  event.currentTarget.classList.add('selected');
+function toggleAvatarPicker(key) {
+  _expandedAvatarState = _expandedAvatarState === key ? null : key;
+  renderAvatarStates();
 }
 
-async function saveAvatar() {
+function selectStateAvatar(key, filename) {
+  _selectedAvatars[key] = filename;
+  renderAvatarStates();
+}
+
+async function saveAvatars() {
   const msg = document.getElementById('avatar-save-msg');
   try {
-    await api('PUT', '/api/hypatia/avatar', { avatar: _selectedAvatar });
-    _hypatiaAvatar = _selectedAvatar;  // update chat cache immediately
+    await api('PUT', '/api/hypatia/avatar', { avatars: _selectedAvatars });
+    Object.assign(_hypatiaAvatars, _selectedAvatars);  // update chat cache
     msg.style.color = 'var(--green)';
     msg.textContent = 'Saved';
     setTimeout(() => msg.textContent = '', 2000);

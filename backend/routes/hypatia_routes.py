@@ -5,7 +5,7 @@ import uuid
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict
 from auth import get_current_user, require_role
 
 router = APIRouter(prefix="/api/hypatia")
@@ -79,9 +79,13 @@ class ChatBody(BaseModel):
 
 @router.get("/avatar")
 def get_avatar(user=Depends(get_current_user)):
-    """Returns the selected Hypatia avatar filename (any logged-in user)."""
+    """Returns the Hypatia avatar dict {idle, listening, thinking, talking, action} (any logged-in user)."""
     settings = _load_settings()
-    return {"avatar": settings.get("hypatia_avatar", "")}
+    avatars = settings.get("hypatia_avatars", {})
+    # backward compat: migrate old single-avatar key
+    if not avatars and settings.get("hypatia_avatar"):
+        avatars = {"idle": settings["hypatia_avatar"]}
+    return {"avatars": avatars}
 
 
 @router.post("/chat", dependencies=[Depends(get_current_user)])
@@ -152,13 +156,13 @@ def list_avatars():
 
 
 class AvatarBody(BaseModel):
-    avatar: str
+    avatars: Dict[str, str]  # {idle, listening, thinking, talking, action}
 
 
 @router.put("/avatar", dependencies=[Depends(require_role("superadmin"))])
 def set_avatar(body: AvatarBody):
     settings = _load_settings()
-    settings["hypatia_avatar"] = body.avatar
+    settings["hypatia_avatars"] = body.avatars
     _save_settings(settings)
     return {"ok": True}
 
@@ -166,9 +170,12 @@ def set_avatar(body: AvatarBody):
 @router.get("/settings", dependencies=[Depends(require_role("superadmin"))])
 def get_hypatia_settings():
     settings = _load_settings()
+    avatars = settings.get("hypatia_avatars", {})
+    if not avatars and settings.get("hypatia_avatar"):
+        avatars = {"idle": settings["hypatia_avatar"]}
     return {
         "system_prompt": settings.get("hypatia_system_prompt", _default_system_prompt()),
-        "avatar": settings.get("hypatia_avatar", ""),
+        "avatars": avatars,
     }
 
 
