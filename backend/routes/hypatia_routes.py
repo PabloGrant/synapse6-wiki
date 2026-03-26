@@ -395,9 +395,7 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
     async with httpx.AsyncClient(timeout=120) as client:
         for model in llm_models:
             base = _api_base(model["api_endpoint"])
-            headers = {}
-            if model.get("api_token"):
-                headers["Authorization"] = f"Bearer {model['api_token']}"
+            headers = _build_headers(model["api_endpoint"], model.get("api_token", ""))
             try:
                 resp = await client.post(
                     f"{base}/v1/chat/completions",
@@ -412,7 +410,7 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
                 )
                 resp.raise_for_status()
                 data = resp.json()
-                return {"reply": data["choices"][0]["message"]["content"], "model_used": model.get("label", model["model_name"])}
+                return {"reply": _extract_content(data), "model_used": model.get("label", model["model_name"])}
             except Exception as e:
                 last_error = str(e)
                 continue
@@ -639,6 +637,29 @@ class TestModelBody(BaseModel):
     type: str = "llm"
 
 
+def _extract_content(data: dict) -> str:
+    """Extract text from a chat completion response.
+    Handles reasoning models that return content=null and put the answer in
+    reasoning_content (OpenAI o-series) or a similar field."""
+    msg = data["choices"][0]["message"]
+    text = msg.get("content") or ""
+    if not text:
+        text = msg.get("reasoning_content") or ""
+    return text.strip()
+
+
+def _build_headers(api_endpoint: str, api_token: str) -> dict:
+    """Build request headers for an LLM call, handling provider quirks."""
+    token = (api_token or "").strip()
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    if "openrouter.ai" in api_endpoint:
+        headers["HTTP-Referer"] = "https://intra.synapse6.net"
+        headers["X-Title"] = "Synapse6 Wiki"
+    return headers
+
+
 def _api_base(endpoint: str) -> str:
     """Normalize an API endpoint: strip trailing slash and any trailing /v1 so
     callers can always safely append /v1/chat/completions etc."""
@@ -652,14 +673,7 @@ def _api_base(endpoint: str) -> str:
 async def test_model(body: TestModelBody):
     """Send a minimal chat completion to verify the model is reachable."""
     base = _api_base(body.api_endpoint)
-    token = (body.api_token or "").strip()
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    # OpenRouter attribution headers (optional but recommended)
-    if "openrouter.ai" in base:
-        headers["HTTP-Referer"] = "https://intra.synapse6.net"
-        headers["X-Title"] = "Synapse6 Wiki"
+    headers = _build_headers(body.api_endpoint, body.api_token)
     async with httpx.AsyncClient(timeout=15) as client:
         try:
             if body.type == "embedding":
@@ -685,8 +699,8 @@ async def test_model(body: TestModelBody):
                 )
                 resp.raise_for_status()
                 data = resp.json()
-                reply = (data["choices"][0]["message"].get("content") or "").strip()
-                return {"ok": True, "reply": reply or "OK (no text content)"}
+                reply = _extract_content(data)
+                return {"ok": True, "reply": reply or "OK (connected)"}
         except httpx.TimeoutException:
             raise HTTPException(504, "Connection timed out")
         except httpx.HTTPStatusError as e:
@@ -831,7 +845,7 @@ async def reflect(body: ReflectBody, user=Depends(get_current_user)):
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
                 f"{_api_base(lm['api_endpoint'])}/v1/chat/completions",
-                headers={"Authorization": f"Bearer {lm.get('api_token', '')}"},
+                headers=_build_headers(lm["api_endpoint"], lm.get("api_token", "")),
                 json={
                     "model": lm.get("model_name", LLM_MODEL),
                     "messages": [{"role": "user", "content": prompt}],
@@ -840,7 +854,7 @@ async def reflect(body: ReflectBody, user=Depends(get_current_user)):
                 },
             )
         resp.raise_for_status()
-        result = resp.json()["choices"][0]["message"]["content"].strip()
+        result = _extract_content(resp.json())
 
         if result and result != "NO_UPDATE":
             mem_dir = os.path.dirname(_hypatia_notes_path(username))
