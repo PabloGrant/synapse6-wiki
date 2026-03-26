@@ -193,6 +193,42 @@ class FetchModelsBody(BaseModel):
     api_endpoint: str = ""
     api_token: str = ""
 
+class TestModelBody(BaseModel):
+    api_endpoint: str
+    api_token: str = ""
+    model_name: str = ""
+
+
+@router.post("/test-model", dependencies=[Depends(require_role("superadmin"))])
+async def test_model(body: TestModelBody):
+    """Send a minimal chat completion to verify the model is reachable."""
+    base = body.api_endpoint.rstrip("/")
+    headers = {"Content-Type": "application/json"}
+    if body.api_token:
+        headers["Authorization"] = f"Bearer {body.api_token}"
+    async with httpx.AsyncClient(timeout=15) as client:
+        try:
+            resp = await client.post(
+                f"{base}/v1/chat/completions",
+                headers=headers,
+                json={
+                    "model": body.model_name,
+                    "messages": [{"role": "user", "content": "Reply with one word: OK"}],
+                    "max_tokens": 8,
+                    "temperature": 0,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            reply = data["choices"][0]["message"]["content"].strip()
+            return {"ok": True, "reply": reply}
+        except httpx.TimeoutException:
+            raise HTTPException(504, "Connection timed out")
+        except httpx.HTTPStatusError as e:
+            raise HTTPException(502, f"HTTP {e.response.status_code}: {e.response.text[:200]}")
+        except Exception as e:
+            raise HTTPException(502, str(e))
+
 
 @router.post("/fetch-models", dependencies=[Depends(require_role("superadmin"))])
 async def fetch_provider_models(body: FetchModelsBody):

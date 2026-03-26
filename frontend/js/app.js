@@ -693,7 +693,9 @@ function _modelCardHtml(m, idx, type) {
             ${m.model_name ? `<option value="${esc(m.model_name)}" selected>${esc(m.model_name)}</option>` : '<option value="">— fetch models —</option>'}
           </select>
           <button class="btn-ghost" onclick="_fetchModels('${id}')" title="Fetch available models">⟳</button>
+          <button class="btn-ghost" onclick="_testModel('${id}')" id="test-btn-${id}" title="Test connection">Test</button>
         </div>
+        <div id="test-msg-${id}" style="font-size:12px;margin-top:4px;min-height:16px"></div>
       </label>
     </div>
   </div>`;
@@ -752,6 +754,29 @@ async function _fetchModels(id) {
     }
   } catch(e) {
     sel.innerHTML = `<option value="${esc(m.model_name||'')}">Error: ${esc(e.message||'fetch failed')}</option>`;
+  }
+}
+
+async function _testModel(id) {
+  const m = _modelCards.find(m => m.id === id);
+  if (!m) return;
+  const btn = document.getElementById(`test-btn-${id}`);
+  const msg = document.getElementById(`test-msg-${id}`);
+  btn.textContent = '…'; btn.disabled = true;
+  msg.style.color = 'var(--subtext)'; msg.textContent = 'Testing…';
+  try {
+    const r = await api('POST', '/api/hypatia/test-model', {
+      api_endpoint: m.api_endpoint,
+      api_token: m.api_token,
+      model_name: m.model_name,
+    });
+    msg.style.color = 'var(--green)';
+    msg.textContent = `✓ Connected — model replied: "${r.reply}"`;
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = `✗ ${e.message || 'Connection failed'}`;
+  } finally {
+    btn.textContent = 'Test'; btn.disabled = false;
   }
 }
 
