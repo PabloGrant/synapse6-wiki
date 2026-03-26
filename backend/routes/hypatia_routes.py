@@ -188,13 +188,10 @@ def get_avatar(user=Depends(get_current_user)):
 
 
 def _assemble_system(settings: dict) -> str:
-    """Assemble the full system prompt from named sections (or fall back to legacy single string)."""
-    prompts = settings.get("hypatia_prompts", None)
-    if prompts:
-        parts = [p["content"] for p in prompts if p.get("enabled") and p.get("content", "").strip()]
-        return "\n\n---\n\n".join(parts) if parts else _default_system_prompt()
-    # legacy fallback
-    return settings.get("hypatia_system_prompt", _default_system_prompt())
+    """Assemble the full system prompt from named sections, always using defaults if nothing saved."""
+    prompts = settings.get("hypatia_prompts", _default_prompts())
+    parts = [p["content"] for p in prompts if p.get("enabled") and p.get("content", "").strip()]
+    return "\n\n---\n\n".join(parts) if parts else _default_system_prompt()
 
 
 @router.post("/chat", dependencies=[Depends(get_current_user)])
