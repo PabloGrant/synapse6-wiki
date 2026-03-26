@@ -1314,25 +1314,54 @@ function switchDropboxTab(tab) {
 // ── LIBRARY FILE CATALOG ────────────────────────────────────────────────────
 
 const _FILE_ICONS = {
-  pdf: '📄', docx: '📝', doc: '📝', pptx: '📊', pptx: '📊',
+  pdf: '📄', docx: '📝', doc: '📝', pptx: '📊',
   xlsx: '📈', xls: '📈', csv: '📋', odt: '📄', txt: '📃', md: '📃',
 };
-
-function _fileIcon(ext) {
-  return _FILE_ICONS[ext?.toLowerCase()] || '📁';
-}
-
+function _fileIcon(ext) { return _FILE_ICONS[ext?.toLowerCase()] || '📁'; }
 function _fmtSize(bytes) {
   if (!bytes) return '';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes/1024).toFixed(1)} KB`;
   return `${(bytes/(1024*1024)).toFixed(1)} MB`;
 }
-
 function _fmtDate(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
 }
+
+// ── Document viewer ──────────────────────────────────────────────────────
+
+function _showLibraryDoc() {
+  document.getElementById('library-doc-view').classList.remove('hidden');
+  document.getElementById('library-tabbed').classList.add('hidden');
+}
+function libraryCloseDoc() {
+  document.getElementById('library-doc-view').classList.add('hidden');
+  document.getElementById('library-tabbed').classList.remove('hidden');
+}
+
+async function libraryViewDoc(fileId, filename) {
+  document.getElementById('library-doc-nav-title').textContent = filename;
+  document.getElementById('library-doc-content').innerHTML =
+    '<div class="dropbox-empty">Loading document…</div>';
+  _showLibraryDoc();
+  try {
+    const r = await api('GET', `/api/library/files/${fileId}/markdown`);
+    // Clean up page markers to look nicer when rendered
+    const cleaned = r.markdown
+      .replace(/^### Page (\d+) ###/gm, '---\n*Page $1*')
+      .replace(/^### Slide (\d+)(?:: (.+?))? ###/gm, (_, n, t) =>
+        `---\n*Slide ${n}${t ? ': ' + t : ''}*`)
+      .replace(/^### Sheet: (.+?) ###/gm, '---\n*Sheet: $1*')
+      .replace(/^### CSV Data ###/gm, '---\n*CSV Data*');
+    document.getElementById('library-doc-content').innerHTML = marked.parse(cleaned);
+  } catch(e) {
+    document.getElementById('library-doc-content').innerHTML =
+      `<div class="dropbox-empty">Could not load document: ${e.message}</div>`;
+  }
+}
+
+// ── Files tab ────────────────────────────────────────────────────────────
 
 async function libraryLoadFiles() {
   const el = document.getElementById('library-file-list');
@@ -1351,10 +1380,10 @@ async function libraryLoadFiles() {
         </tr></thead>
         <tbody>
           ${files.map(f => `
-            <tr class="library-row" data-id="${f.id}">
+            <tr class="library-row">
               <td class="library-filename">
                 <span class="library-ext-icon">${_fileIcon(f.extension)}</span>
-                <span>${esc(f.original_filename)}</span>
+                <button class="library-filename-link" onclick="libraryViewDoc('${f.id}','${esc(f.original_filename)}')">${esc(f.original_filename)}</button>
               </td>
               <td>${esc(f.uploaded_by || '—')}</td>
               <td>${_fmtDate(f.file_date)}</td>
@@ -1373,33 +1402,88 @@ async function libraryLoadFiles() {
   }
 }
 
+// ── Summary tab ──────────────────────────────────────────────────────────
+
 async function libraryViewSummary(fileId, filename) {
   switchDropboxTab('summaries');
   const el = document.getElementById('library-summaries-list');
-  el.innerHTML = '<div class="dropbox-empty">Loading summary…</div>';
+  el.innerHTML = '<div class="dropbox-empty">Loading…</div>';
   try {
     const f = await api('GET', `/api/library/files/${fileId}`);
-    el.innerHTML = `
-      <div class="library-summary-card">
-        <div class="library-summary-title">${_fileIcon(f.extension)} ${esc(f.original_filename)}</div>
-        <div class="library-summary-meta">
-          ${_fmtDate(f.upload_date)} · ${esc(f.uploaded_by)} · ${f.page_count || 0} pages
-        </div>
-        <div class="library-summary-section">Summary</div>
-        <div class="library-summary-body">${esc(f.summary || 'No summary available.')}</div>
-        ${f.key_points?.length ? `
-          <div class="library-summary-section">Key Points</div>
-          <ul class="library-summary-list">
-            ${f.key_points.map(p => `<li>${esc(p)}</li>`).join('')}
-          </ul>` : ''}
-        ${f.claims?.length ? `
-          <div class="library-summary-section">Claims</div>
-          <ul class="library-summary-list">
-            ${f.claims.map(c => `<li>${esc(c)}</li>`).join('')}
-          </ul>` : ''}
-      </div>`;
+
+    // Build the report as markdown then render it
+    const lines = [
+      `# ${f.original_filename}`,
+      '',
+      `**Uploaded by:** ${f.uploaded_by || '—'} &nbsp;·&nbsp; **Upload date:** ${_fmtDate(f.upload_date)} &nbsp;·&nbsp; **File date:** ${_fmtDate(f.file_date)} &nbsp;·&nbsp; **Pages:** ${f.page_count || 0} &nbsp;·&nbsp; **Size:** ${_fmtSize(f.file_size_bytes)}`,
+      '',
+      '---',
+      '',
+      '## Executive Summary',
+      '',
+      f.summary || '*No summary available.*',
+      '',
+    ];
+
+    if (f.key_points?.length) {
+      lines.push('## Key Points', '');
+      f.key_points.forEach(p => lines.push(`- ${p}`));
+      lines.push('');
+    }
+
+    if (f.claims?.length) {
+      lines.push('## Claims & Assertions', '');
+      f.claims.forEach(c => lines.push(`- ${c}`));
+      lines.push('');
+    }
+
+    lines.push(
+      '---',
+      '',
+      `<button class="btn-ghost" onclick="libraryViewDoc('${f.id}','${esc(f.original_filename)}')" style="margin-bottom:24px">View Full Document →</button>`,
+      '',
+    );
+
+    // Overlaps placeholder — will be filled async below
+    const overlapId = `overlaps-${fileId}`;
+    lines.push(
+      `<div id="${overlapId}" class="library-overlaps-section">` +
+      `<div class="library-overlap-checking"><span class="library-overlap-spinner"></span> Checking for related content…</div></div>`
+    );
+
+    el.innerHTML = `<div class="library-summary-card markdown-body">${marked.parse(lines.join('\n'))}</div>`;
+
+    // Async overlap check
+    _loadOverlaps(fileId, overlapId);
   } catch(e) {
     el.innerHTML = `<div class="dropbox-empty">Error: ${e.message}</div>`;
+  }
+}
+
+async function _loadOverlaps(fileId, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  try {
+    const r = await api('GET', `/api/library/files/${fileId}/overlaps`);
+    const items = r.library || [];
+    if (!items.length) {
+      el.innerHTML = '<p class="library-overlap-none">No related content found in the library.</p>';
+      return;
+    }
+    el.innerHTML = `
+      <h2>Related Library Files</h2>
+      ${items.map(item => `
+        <div class="library-overlap-item">
+          <div class="library-overlap-header">
+            <span class="library-overlap-name">${_fileIcon(item.original_filename?.split('.').pop())}
+              <button class="library-filename-link" onclick="libraryViewSummary('${item.file_id}','${esc(item.original_filename)}')">${esc(item.original_filename)}</button>
+            </span>
+            <span class="library-overlap-score">${Math.round(item.score * 100)}% match</span>
+          </div>
+          <p class="library-overlap-snippet">${esc(item.snippet)}…</p>
+        </div>`).join('')}`;
+  } catch(e) {
+    el.innerHTML = '<p class="library-overlap-none">Could not check for related content.</p>';
   }
 }
 

@@ -120,6 +120,17 @@
 
     <!-- DROPBOX PAGE -->
     <div id="dropbox-view" class="hidden">
+
+      <!-- DOCUMENT VIEWER (replaces tabs when open) -->
+      <div id="library-doc-view" class="hidden">
+        <div class="library-doc-nav">
+          <button class="btn-ghost" onclick="libraryCloseDoc()">← Back</button>
+          <span id="library-doc-nav-title"></span>
+        </div>
+        <article id="library-doc-content" class="markdown-body library-doc-body"></article>
+      </div>
+
+      <div id="library-tabbed">
       <div class="dropbox-header">
         <div class="dropbox-title">Library File Catalog</div>
       </div>
@@ -166,6 +177,8 @@
         <input type="file" id="library-file-input" style="display:none" accept=".pdf,.docx,.doc,.pptx,.xlsx,.xls,.csv,.odt,.txt,.md" onchange="libraryFileSelected(this)">
         <div id="library-upload-jobs"></div>
       </div>
+
+      </div><!-- end #library-tabbed -->
     </div>
 
     <!-- HOME / DASHBOARD -->

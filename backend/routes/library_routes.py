@@ -240,6 +240,27 @@ async def _qdrant_search(vector: list[float], limit: int = 20,
         return resp.json().get("result", [])
 
 
+async def _qdrant_search_exclude_file(vector: list[float], exclude_file_id: str,
+                                      limit: int = 30) -> list[dict]:
+    """Search Qdrant excluding all chunks from a specific file."""
+    payload: dict = {
+        "vector": vector,
+        "limit": limit,
+        "with_payload": True,
+        "score_threshold": 0.40,
+        "filter": {
+            "must_not": [{"key": "file_id", "match": {"value": exclude_file_id}}]
+        },
+    }
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{QDRANT_URL}/collections/{QDRANT_COL}/points/search",
+            json=payload,
+        )
+        resp.raise_for_status()
+        return resp.json().get("result", [])
+
+
 # ── Background pipeline ───────────────────────────────────────────────────
 
 async def _run_pipeline(
@@ -467,6 +488,58 @@ def get_file(file_id: str):
         raise HTTPException(404, "File not found")
     with open(p) as f:
         return json.load(f)
+
+
+@router.get("/files/{file_id}/markdown", dependencies=[Depends(get_current_user)])
+def get_file_markdown(file_id: str):
+    p = _md_path(file_id)
+    if not os.path.exists(p):
+        raise HTTPException(404, "Markdown not available for this file")
+    with open(p) as f:
+        return {"markdown": f.read()}
+
+
+@router.get("/files/{file_id}/overlaps", dependencies=[Depends(get_current_user)])
+async def get_overlaps(file_id: str):
+    """Find library files with overlapping content via Qdrant similarity."""
+    p = _meta_path(file_id)
+    if not os.path.exists(p):
+        raise HTTPException(404, "File not found")
+    with open(p) as f:
+        meta = json.load(f)
+
+    # Build a query from the summary + key points for broader overlap coverage
+    summary = meta.get("summary", "")
+    key_points = " ".join(meta.get("key_points", []))
+    query_text = f"{summary} {key_points}".strip()
+
+    if not query_text:
+        return {"library": []}
+
+    settings = _load_settings()
+    try:
+        vectors = await _embed([query_text], settings)
+    except RuntimeError:
+        return {"library": []}
+
+    results = await _qdrant_search_exclude_file(vectors[0], exclude_file_id=file_id)
+
+    # Deduplicate — keep best-scoring chunk per unique file
+    seen: dict[str, dict] = {}
+    for r in results:
+        fid = r["payload"].get("file_id")
+        if not fid or fid in seen:
+            continue
+        seen[fid] = {
+            "file_id": fid,
+            "original_filename": r["payload"].get("original_filename", ""),
+            "score": round(r["score"], 3),
+            "page_number": r["payload"].get("page_number"),
+            "page_title": r["payload"].get("page_title"),
+            "snippet": r["payload"].get("content", "")[:300],
+        }
+
+    return {"library": list(seen.values())[:6]}
 
 
 @router.delete("/files/{file_id}", dependencies=[Depends(require_role("editor"))])
