@@ -345,6 +345,7 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 }
 .chat-msg.user .chat-avatar { background: var(--green-dark); color: #fff; }
 .chat-msg.assistant .chat-avatar { background: rgba(124,184,153,0.15); color: var(--green-light); border: 1px solid var(--green-dark); }
+.chat-avatar-img { background-color: transparent !important; border: none !important; border-radius: 50% !important; background-size: cover; background-position: center center; }
 .chat-bubble {
   max-width: 80%; padding: 10px 14px; border-radius: 8px; font-size: 14px; line-height: 1.65;
 }

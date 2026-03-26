@@ -315,10 +315,17 @@ async function deleteComment(slug, id) {
 }
 
 // ── HYPATIA ────────────────────────────────────────────────────────────────
-function showHypatia() {
+async function showHypatia() {
   currentSlug = '__hypatia__';
   showView('hypatia');
   setActiveNav('__hypatia__');
+  // Load avatar if not yet cached
+  if (!_hypatiaAvatar) {
+    try {
+      const r = await api('GET', '/api/hypatia/avatar');
+      _hypatiaAvatar = r.avatar || '';
+    } catch {}
+  }
   if (!chatHistory.length) {
     appendChatMsg('assistant', "Hi — I'm Hypatia. Ask me anything about Synapse6, the product, the team, or any topic in the knowledge base.");
   }
@@ -348,13 +355,21 @@ async function sendChat(e) {
 
 function appendChatMsg(role, text, thinking = false) {
   const msgs = document.getElementById('chat-messages');
-  const initials = role === 'user' ? (currentUser?.sub?.[0] || 'U').toUpperCase() : 'H';
   const content = thinking
     ? `<span class="chat-thinking">${esc(text)}</span>`
     : role === 'assistant' ? marked.parse(text) : `<p>${esc(text)}</p>`;
+
+  let avatarHtml;
+  if (role === 'assistant' && _hypatiaAvatar) {
+    avatarHtml = `<div class="chat-avatar chat-avatar-img" style="background-image:url('/static/avatars/${encodeURIComponent(_hypatiaAvatar)}')"></div>`;
+  } else {
+    const initials = role === 'user' ? (currentUser?.sub?.[0] || 'U').toUpperCase() : 'H';
+    avatarHtml = `<div class="chat-avatar">${initials}</div>`;
+  }
+
   const div = document.createElement('div');
   div.className = `chat-msg ${role}`;
-  div.innerHTML = `<div class="chat-avatar">${initials}</div><div class="chat-bubble">${content}</div>`;
+  div.innerHTML = `${avatarHtml}<div class="chat-bubble">${content}</div>`;
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
   return div;
@@ -617,6 +632,7 @@ async function saveSiteSettings(e) {
 }
 
 let _selectedAvatar = '';
+let _hypatiaAvatar = '';  // cached for chat display
 
 async function loadHypatiaSettings() {
   try {
@@ -653,6 +669,7 @@ async function saveAvatar() {
   const msg = document.getElementById('avatar-save-msg');
   try {
     await api('PUT', '/api/hypatia/avatar', { avatar: _selectedAvatar });
+    _hypatiaAvatar = _selectedAvatar;  // update chat cache immediately
     msg.style.color = 'var(--green)';
     msg.textContent = 'Saved';
     setTimeout(() => msg.textContent = '', 2000);
