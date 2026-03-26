@@ -335,20 +335,60 @@ const _HIDDEN_GREETINGS = [
   "The user just arrived. Begin the conversation with one or two sentences — something real, a little unexpected, and without introducing yourself.",
 ];
 
+const HYPATIA_SESSION_KEY = 'hypatia_session';
+const HYPATIA_SESSION_TTL = 30 * 60 * 1000; // 30 minutes
+
+function _saveHypatiaSession() {
+  try {
+    sessionStorage.setItem(HYPATIA_SESSION_KEY, JSON.stringify({
+      ts: Date.now(),
+      history: chatHistory,
+    }));
+  } catch {}
+}
+
+function _loadHypatiaSession() {
+  try {
+    const raw = sessionStorage.getItem(HYPATIA_SESSION_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (Date.now() - data.ts > HYPATIA_SESSION_TTL) {
+      sessionStorage.removeItem(HYPATIA_SESSION_KEY);
+      return null;
+    }
+    return data;
+  } catch { return null; }
+}
+
 async function showHypatia() {
   currentSlug = '__hypatia__';
   showView('hypatia');
   setActiveNav('__hypatia__');
-  // Fresh conversation each visit
-  chatHistory = [];
-  document.getElementById('chat-messages').innerHTML = '';
+
   if (!Object.keys(_hypatiaAvatars).length) {
     try {
       const r = await api('GET', '/api/hypatia/avatar');
       _hypatiaAvatars = r.avatars || {};
     } catch {}
   }
-  sendHiddenGreeting();
+
+  const session = _loadHypatiaSession();
+  if (session && session.history.length) {
+    // Restore recent conversation without greeting
+    chatHistory = session.history;
+    const msgs = document.getElementById('chat-messages');
+    msgs.innerHTML = '';
+    msgs.classList.add('no-anim');
+    for (const msg of chatHistory) {
+      appendChatMsg(msg.role, msg.content, 'idle');
+    }
+    msgs.classList.remove('no-anim');
+    msgs.scrollTop = msgs.scrollHeight;
+  } else {
+    chatHistory = [];
+    document.getElementById('chat-messages').innerHTML = '';
+    sendHiddenGreeting();
+  }
 }
 
 async function sendHiddenGreeting() {
@@ -360,8 +400,8 @@ async function sendHiddenGreeting() {
     });
     await fadeOutMsg(thinking);
     appendChatMsg('assistant', r.reply, 'idle');
-    // Seed chat history with just the reply so follow-up context works
     chatHistory = [{ role: 'assistant', content: r.reply }];
+    _saveHypatiaSession();
   } catch {
     await fadeOutMsg(thinking);
     appendChatMsg('assistant', "Something's stirring in the knowledge base… ask me anything.", 'idle');
@@ -383,6 +423,7 @@ async function sendChat(e) {
     await fadeOutMsg(thinking);
     appendChatMsg('assistant', r.reply, 'idle');
     chatHistory.push({ role: 'assistant', content: r.reply });
+    _saveHypatiaSession();
   } catch (ex) {
     await fadeOutMsg(thinking);
     appendChatMsg('assistant', '⚠ Could not reach Hypatia: ' + ex.message, 'idle');

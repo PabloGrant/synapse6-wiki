@@ -346,6 +346,8 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 }
 .chat-msg { display: flex; gap: 10px; animation: chatMsgIn 0.6s ease; }
 .chat-msg.user { flex-direction: row-reverse; }
+#chat-messages.no-anim .chat-msg,
+#chat-messages.no-anim .chat-avatar-img { animation: none; }
 .chat-avatar {
   width: 30px; height: 30px; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
