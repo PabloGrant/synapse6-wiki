@@ -1152,15 +1152,22 @@ async function addFontCard() {
   if (!raw) return;
   let name, url;
   if (raw.startsWith('http')) {
-    const match = raw.match(/family=([^:&]+)/);
-    if (!match) { alert('Could not extract font name from URL'); return; }
-    name = decodeURIComponent(match[1].replace(/\+/g, ' '));
-    // Strip preview-only params (text=, subset=), ensure display=swap
-    const u = new URL(raw);
-    u.searchParams.delete('text');
-    u.searchParams.delete('subset');
-    if (!u.searchParams.has('display')) u.searchParams.set('display', 'swap');
-    url = u.toString();
+    // fonts.google.com/specimen/Font+Name  (specimen browser page)
+    const specimenMatch = raw.match(/fonts\.google\.com\/specimen\/([^?&#]+)/);
+    if (specimenMatch) {
+      name = decodeURIComponent(specimenMatch[1].replace(/\+/g, ' '));
+      url = `https://fonts.googleapis.com/css2?family=${specimenMatch[1]}&display=swap`;
+    } else {
+      // fonts.googleapis.com/css2?family=Font+Name  (API URL)
+      const match = raw.match(/family=([^:&]+)/);
+      if (!match) { alert('Could not extract font name from URL'); return; }
+      name = decodeURIComponent(match[1].replace(/\+/g, ' '));
+      const u = new URL(raw);
+      u.searchParams.delete('text');
+      u.searchParams.delete('subset');
+      if (!u.searchParams.has('display')) u.searchParams.set('display', 'swap');
+      url = u.toString();
+    }
   } else {
     name = raw;
     url = `https://fonts.googleapis.com/css2?family=${raw.replace(/ /g, '+')}&display=swap`;
