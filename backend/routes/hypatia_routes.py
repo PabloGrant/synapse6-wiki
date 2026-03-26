@@ -652,9 +652,14 @@ def _api_base(endpoint: str) -> str:
 async def test_model(body: TestModelBody):
     """Send a minimal chat completion to verify the model is reachable."""
     base = _api_base(body.api_endpoint)
+    token = (body.api_token or "").strip()
     headers = {"Content-Type": "application/json"}
-    if body.api_token:
-        headers["Authorization"] = f"Bearer {body.api_token}"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    # OpenRouter attribution headers (optional but recommended)
+    if "openrouter.ai" in base:
+        headers["HTTP-Referer"] = "https://intra.synapse6.net"
+        headers["X-Title"] = "Synapse6 Wiki"
     async with httpx.AsyncClient(timeout=15) as client:
         try:
             if body.type == "embedding":

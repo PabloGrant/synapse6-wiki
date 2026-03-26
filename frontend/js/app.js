@@ -1442,6 +1442,12 @@ async function _fetchModels(id) {
 async function _testModel(id) {
   const m = _modelCards.find(m => m.id === id);
   if (!m) return;
+  // Sync token from DOM in case _modelCards is stale (browser password field behaviour)
+  const cardEl = document.getElementById(`mc-${id}`);
+  if (cardEl) {
+    const tokenEl = cardEl.querySelector('input[type="password"]');
+    if (tokenEl && tokenEl.value) m.api_token = tokenEl.value;
+  }
   const btn = document.getElementById(`test-btn-${id}`);
   const msg = document.getElementById(`test-msg-${id}`);
   btn.textContent = '…'; btn.disabled = true;
