@@ -137,17 +137,34 @@
           <img src="/vendor/icons/upload.svg" width="15" height="15" alt="">UPLOAD
         </button>
       </div>
+      <!-- FILES TAB -->
       <div id="dropbox-tab-files" class="dropbox-tab-content">
-        <div class="dropbox-empty">No files yet.</div>
+        <div id="library-file-list"><div class="dropbox-empty">Loading…</div></div>
       </div>
+
+      <!-- SUMMARIES TAB -->
       <div id="dropbox-tab-summaries" class="dropbox-tab-content hidden">
-        <div class="dropbox-empty">No summaries yet.</div>
+        <div id="library-summaries-list"><div class="dropbox-empty">Select a file to view its summary.</div></div>
       </div>
+
+      <!-- SEARCH TAB -->
       <div id="dropbox-tab-search" class="dropbox-tab-content hidden">
-        <div class="dropbox-empty">Search coming soon.</div>
+        <form class="library-search-form" onsubmit="librarySearch(event)">
+          <input type="search" id="library-search-input" placeholder="Search across all documents…" autocomplete="off">
+          <button type="submit" class="btn-primary">Search</button>
+        </form>
+        <div id="library-search-results"></div>
       </div>
+
+      <!-- UPLOAD TAB -->
       <div id="dropbox-tab-upload" class="dropbox-tab-content hidden">
-        <div class="dropbox-empty">Upload coming soon.</div>
+        <div id="library-dropzone" class="library-dropzone" ondragover="libraryDragOver(event)" ondragleave="libraryDragLeave(event)" ondrop="libraryDrop(event)" onclick="document.getElementById('library-file-input').click()">
+          <img src="/vendor/icons/upload.svg" width="32" height="32" alt="" style="filter:var(--icon-filter);opacity:0.4;margin-bottom:12px">
+          <div class="library-dropzone-title">Drop files here or click to browse</div>
+          <div class="library-dropzone-sub">PDF · DOCX · PPTX · XLSX · CSV · ODT · TXT · MD &nbsp;·&nbsp; max 200 MB</div>
+        </div>
+        <input type="file" id="library-file-input" style="display:none" accept=".pdf,.docx,.doc,.pptx,.xlsx,.xls,.csv,.odt,.txt,.md" onchange="libraryFileSelected(this)">
+        <div id="library-upload-jobs"></div>
       </div>
     </div>
 

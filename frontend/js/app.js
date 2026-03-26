@@ -1301,6 +1301,7 @@ function showDropbox() {
   showView('dropbox');
   setActiveNav('__dropbox__');
   switchDropboxTab('files');
+  libraryLoadFiles();
 }
 
 function switchDropboxTab(tab) {
@@ -1308,6 +1309,215 @@ function switchDropboxTab(tab) {
     document.getElementById(`dtab-${t}`).classList.toggle('active', t === tab);
     document.getElementById(`dropbox-tab-${t}`).classList.toggle('hidden', t !== tab);
   });
+}
+
+// ── LIBRARY FILE CATALOG ────────────────────────────────────────────────────
+
+const _FILE_ICONS = {
+  pdf: '📄', docx: '📝', doc: '📝', pptx: '📊', pptx: '📊',
+  xlsx: '📈', xls: '📈', csv: '📋', odt: '📄', txt: '📃', md: '📃',
+};
+
+function _fileIcon(ext) {
+  return _FILE_ICONS[ext?.toLowerCase()] || '📁';
+}
+
+function _fmtSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes/1024).toFixed(1)} KB`;
+  return `${(bytes/(1024*1024)).toFixed(1)} MB`;
+}
+
+function _fmtDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'});
+}
+
+async function libraryLoadFiles() {
+  const el = document.getElementById('library-file-list');
+  try {
+    const r = await api('GET', '/api/library/files');
+    const files = r.files || [];
+    if (!files.length) {
+      el.innerHTML = '<div class="dropbox-empty">No files yet. Upload some documents.</div>';
+      return;
+    }
+    el.innerHTML = `
+      <table class="library-table">
+        <thead><tr>
+          <th>File</th><th>Uploaded By</th><th>File Date</th>
+          <th>Upload Date</th><th>Size</th><th>Pages</th><th></th>
+        </tr></thead>
+        <tbody>
+          ${files.map(f => `
+            <tr class="library-row" data-id="${f.id}">
+              <td class="library-filename">
+                <span class="library-ext-icon">${_fileIcon(f.extension)}</span>
+                <span>${esc(f.original_filename)}</span>
+              </td>
+              <td>${esc(f.uploaded_by || '—')}</td>
+              <td>${_fmtDate(f.file_date)}</td>
+              <td>${_fmtDate(f.upload_date)}</td>
+              <td>${_fmtSize(f.file_size_bytes)}</td>
+              <td>${f.page_count || '—'}</td>
+              <td class="library-actions">
+                <button class="btn-ghost" onclick="libraryViewSummary('${f.id}','${esc(f.original_filename)}')">Summary</button>
+                <button class="btn-ghost danger" onclick="libraryDeleteFile('${f.id}','${esc(f.original_filename)}')">Delete</button>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    el.innerHTML = `<div class="dropbox-empty">Error loading files: ${e.message}</div>`;
+  }
+}
+
+async function libraryViewSummary(fileId, filename) {
+  switchDropboxTab('summaries');
+  const el = document.getElementById('library-summaries-list');
+  el.innerHTML = '<div class="dropbox-empty">Loading summary…</div>';
+  try {
+    const f = await api('GET', `/api/library/files/${fileId}`);
+    el.innerHTML = `
+      <div class="library-summary-card">
+        <div class="library-summary-title">${_fileIcon(f.extension)} ${esc(f.original_filename)}</div>
+        <div class="library-summary-meta">
+          ${_fmtDate(f.upload_date)} · ${esc(f.uploaded_by)} · ${f.page_count || 0} pages
+        </div>
+        <div class="library-summary-section">Summary</div>
+        <div class="library-summary-body">${esc(f.summary || 'No summary available.')}</div>
+        ${f.key_points?.length ? `
+          <div class="library-summary-section">Key Points</div>
+          <ul class="library-summary-list">
+            ${f.key_points.map(p => `<li>${esc(p)}</li>`).join('')}
+          </ul>` : ''}
+        ${f.claims?.length ? `
+          <div class="library-summary-section">Claims</div>
+          <ul class="library-summary-list">
+            ${f.claims.map(c => `<li>${esc(c)}</li>`).join('')}
+          </ul>` : ''}
+      </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="dropbox-empty">Error: ${e.message}</div>`;
+  }
+}
+
+async function libraryDeleteFile(fileId, filename) {
+  if (!confirm(`Delete "${filename}"? This will remove it from storage and the search index.`)) return;
+  try {
+    await api('DELETE', `/api/library/files/${fileId}`);
+    libraryLoadFiles();
+  } catch(e) {
+    alert(`Delete failed: ${e.message}`);
+  }
+}
+
+async function librarySearch(e) {
+  e.preventDefault();
+  const query = document.getElementById('library-search-input').value.trim();
+  if (!query) return;
+  const el = document.getElementById('library-search-results');
+  el.innerHTML = '<div class="dropbox-empty">Searching…</div>';
+  try {
+    const r = await api('POST', '/api/library/search', {query, limit: 20});
+    const results = r.results || [];
+    if (!results.length) {
+      el.innerHTML = '<div class="dropbox-empty">No results found.</div>';
+      return;
+    }
+    el.innerHTML = results.map(r => `
+      <div class="library-search-result">
+        <div class="library-search-result-header">
+          <span class="library-search-filename">${esc(r.original_filename)}</span>
+          <span class="library-search-page">${r.page_title ? esc(r.page_title) : `Page ${r.page_number}`}</span>
+          <span class="library-search-score">${(r.score * 100).toFixed(0)}%</span>
+        </div>
+        <div class="library-search-snippet">${esc(r.snippet)}</div>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div class="dropbox-empty">Search error: ${e.message}</div>`;
+  }
+}
+
+// Upload
+function libraryDragOver(e) {
+  e.preventDefault();
+  document.getElementById('library-dropzone').classList.add('drag-over');
+}
+function libraryDragLeave(e) {
+  document.getElementById('library-dropzone').classList.remove('drag-over');
+}
+function libraryDrop(e) {
+  e.preventDefault();
+  document.getElementById('library-dropzone').classList.remove('drag-over');
+  const files = e.dataTransfer?.files;
+  if (files?.length) libraryUploadFile(files[0]);
+}
+function libraryFileSelected(input) {
+  if (input.files?.length) libraryUploadFile(input.files[0]);
+  input.value = '';
+}
+
+async function libraryUploadFile(file) {
+  const jobsEl = document.getElementById('library-upload-jobs');
+  const jobEl = document.createElement('div');
+  jobEl.className = 'library-job';
+  jobEl.innerHTML = `
+    <div class="library-job-name">${_fileIcon(file.name.split('.').pop())} ${esc(file.name)}</div>
+    <div class="library-job-stage">Uploading…</div>
+    <div class="library-job-bar"><div class="library-job-progress"></div></div>`;
+  jobsEl.prepend(jobEl);
+
+  const stageEl = jobEl.querySelector('.library-job-stage');
+  const progressEl = jobEl.querySelector('.library-job-progress');
+
+  const stages = {
+    pending: [5, 'Queued…'],
+    running: [30, null],
+    done: [100, 'Complete ✓'],
+    failed: [100, null],
+  };
+
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const resp = await fetch('/api/library/upload', {
+      method: 'POST',
+      body: form,
+      credentials: 'same-origin',
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || resp.statusText);
+    }
+    const {job_id} = await resp.json();
+    progressEl.style.width = '15%';
+
+    // Poll job status
+    while (true) {
+      await new Promise(r => setTimeout(r, 2000));
+      const job = await api('GET', `/api/library/jobs/${job_id}`);
+      const [pct, label] = stages[job.status] || [30, job.stage];
+      progressEl.style.width = `${pct}%`;
+      stageEl.textContent = label ?? job.stage;
+
+      if (job.status === 'done') {
+        jobEl.classList.add('done');
+        libraryLoadFiles();
+        break;
+      }
+      if (job.status === 'failed') {
+        jobEl.classList.add('failed');
+        stageEl.textContent = `Failed: ${job.error || 'unknown error'}`;
+        break;
+      }
+    }
+  } catch(e) {
+    jobEl.classList.add('failed');
+    stageEl.textContent = `Error: ${e.message}`;
+    progressEl.style.width = '100%';
+  }
 }
 
 // ── UTILS ──────────────────────────────────────────────────────────────────
