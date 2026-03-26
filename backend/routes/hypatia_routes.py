@@ -653,6 +653,8 @@ async def test_model(body: TestModelBody):
     """Send a minimal chat completion to verify the model is reachable."""
     base = _api_base(body.api_endpoint)
     token = (body.api_token or "").strip()
+    import logging
+    logging.warning(f"[test_model] endpoint={base!r} token_len={len(token)} token_prefix={token[:8]!r}")
     headers = {"Content-Type": "application/json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
