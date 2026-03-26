@@ -77,6 +77,13 @@ class ChatBody(BaseModel):
     messages: List[ChatMessage]
 
 
+@router.get("/avatar")
+def get_avatar(user=Depends(get_current_user)):
+    """Returns the selected Hypatia avatar filename (any logged-in user)."""
+    settings = _load_settings()
+    return {"avatar": settings.get("hypatia_avatar", "")}
+
+
 @router.post("/chat", dependencies=[Depends(get_current_user)])
 async def chat(body: ChatBody):
     settings = _load_settings()
@@ -129,11 +136,39 @@ async def chat(body: ChatBody):
     raise HTTPException(502, f"All LLM models failed. Last error: {last_error}")
 
 
+STATIC_DIR = os.environ.get("STATIC_DIR", "/app/static")
+
+
+@router.get("/avatars", dependencies=[Depends(require_role("superadmin"))])
+def list_avatars():
+    avatar_dir = os.path.join(STATIC_DIR, "avatars")
+    if not os.path.exists(avatar_dir):
+        return {"avatars": []}
+    files = sorted(
+        f for f in os.listdir(avatar_dir)
+        if f.lower().endswith(".gif")
+    )
+    return {"avatars": files}
+
+
+class AvatarBody(BaseModel):
+    avatar: str
+
+
+@router.put("/avatar", dependencies=[Depends(require_role("superadmin"))])
+def set_avatar(body: AvatarBody):
+    settings = _load_settings()
+    settings["hypatia_avatar"] = body.avatar
+    _save_settings(settings)
+    return {"ok": True}
+
+
 @router.get("/settings", dependencies=[Depends(require_role("superadmin"))])
 def get_hypatia_settings():
     settings = _load_settings()
     return {
-        "system_prompt": settings.get("hypatia_system_prompt", _default_system_prompt())
+        "system_prompt": settings.get("hypatia_system_prompt", _default_system_prompt()),
+        "avatar": settings.get("hypatia_avatar", ""),
     }
 
 

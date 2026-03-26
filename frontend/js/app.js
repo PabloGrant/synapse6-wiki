@@ -616,15 +616,50 @@ async function saveSiteSettings(e) {
   alert('Site settings saved.');
 }
 
+let _selectedAvatar = '';
+
 async function loadHypatiaSettings() {
   try {
     const s = await api('GET', '/api/hypatia/settings');
     document.getElementById('system-prompt-input').value = s.system_prompt || '';
+    _selectedAvatar = s.avatar || '';
   } catch {}
   try {
     const r = await api('GET', '/api/hypatia/models');
     renderModelCards(r.models || []);
   } catch {}
+  try {
+    const r = await api('GET', '/api/hypatia/avatars');
+    renderAvatarPicker(r.avatars || [], _selectedAvatar);
+  } catch {}
+}
+
+function renderAvatarPicker(avatars, selected) {
+  const el = document.getElementById('avatar-picker');
+  if (!avatars.length) { el.innerHTML = '<div style="color:var(--subtext);font-size:13px">No avatars found.</div>'; return; }
+  el.innerHTML = avatars.map(f => `
+    <div class="avatar-option ${f === selected ? 'selected' : ''}" onclick="selectAvatar('${f}')"
+      style="background-image:url('/static/avatars/${encodeURIComponent(f)}')"></div>
+  `).join('');
+}
+
+function selectAvatar(filename) {
+  _selectedAvatar = filename;
+  document.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+}
+
+async function saveAvatar() {
+  const msg = document.getElementById('avatar-save-msg');
+  try {
+    await api('PUT', '/api/hypatia/avatar', { avatar: _selectedAvatar });
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Saved';
+    setTimeout(() => msg.textContent = '', 2000);
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Failed';
+  }
 }
 
 // ── Model Config ────────────────────────────────────────────────────────────
