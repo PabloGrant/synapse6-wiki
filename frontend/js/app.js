@@ -1371,9 +1371,10 @@ function _modelCardHtml(m, idx, type) {
       </label>
       <label class="mc-label" style="flex:2">Model Name
         <div style="display:flex;gap:4px">
-          <select id="mn-${id}" onchange="_mcSet('${id}','model_name',this.value)" style="flex:1">
-            ${m.model_name ? `<option value="${esc(m.model_name)}" selected>${esc(m.model_name)}</option>` : '<option value="">— fetch models —</option>'}
-          </select>
+          <input type="text" id="mn-${id}" list="mnl-${id}" value="${esc(m.model_name||'')}"
+            autocomplete="off" placeholder="e.g. qwen/qwen3-embedding-8b"
+            oninput="_mcSet('${id}','model_name',this.value)" style="flex:1">
+          <datalist id="mnl-${id}"></datalist>
           <button class="btn-ghost" onclick="_fetchModels('${id}')" title="Fetch available models">⟳</button>
           <button class="btn-ghost" onclick="_testModel('${id}')" id="test-btn-${id}" title="Test connection">Test</button>
         </div>
@@ -1419,23 +1420,34 @@ function addModelCard(type) {
 async function _fetchModels(id) {
   const m = _modelCards.find(m => m.id === id);
   if (!m) return;
-  const sel = document.getElementById(`mn-${id}`);
-  sel.innerHTML = '<option>Fetching…</option>';
+  const input = document.getElementById(`mn-${id}`);
+  const dl = document.getElementById(`mnl-${id}`);
+  const prev = input.placeholder;
+  input.placeholder = 'Fetching…';
+  // Also sync token from DOM before fetching
+  const cardEl = document.getElementById(`mc-${id}`);
+  if (cardEl) {
+    const tokenEl = cardEl.querySelector('input[type="password"]');
+    if (tokenEl && tokenEl.value) m.api_token = tokenEl.value;
+  }
   try {
     const r = await api('POST', '/api/hypatia/fetch-models', {
       provider: m.provider,
       api_endpoint: m.api_endpoint,
       api_token: m.api_token,
     });
-    sel.innerHTML = r.models.map(mod =>
-      `<option value="${esc(mod.id)}" ${mod.id===m.model_name?'selected':''}>${esc(mod.name)}</option>`
-    ).join('');
+    dl.innerHTML = r.models.map(mod => `<option value="${esc(mod.id)}">${esc(mod.name)}</option>`).join('');
+    input.placeholder = prev;
+    // If field is empty and we got results, pre-fill with first model
     if (!m.model_name && r.models.length) {
       m.model_name = r.models[0].id;
-      sel.value = m.model_name;
+      input.value = m.model_name;
     }
   } catch(e) {
-    sel.innerHTML = `<option value="${esc(m.model_name||'')}">Error: ${esc(e.message||'fetch failed')}</option>`;
+    input.placeholder = prev;
+    dl.innerHTML = '';
+    const msg = document.getElementById(`test-msg-${id}`);
+    if (msg) { msg.style.color = 'var(--danger)'; msg.textContent = `Fetch failed: ${e.message||'error'}`; }
   }
 }
 
