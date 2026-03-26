@@ -335,7 +335,117 @@
         <!-- SKILLS -->
         <div id="hytab-skills" class="hytab-content hidden">
           <div class="admin-section-title" style="margin-top:24px">Skills</div>
-          <p class="admin-placeholder">Skills configuration coming soon.</p>
+          <p style="font-size:13px;color:var(--subtext);margin-bottom:20px;max-width:680px">
+            Skills extend what Hypatia can do when responding to questions or processing library content.
+            Active skills run automatically; available skills can be enabled; future skills require upcoming infrastructure.
+          </p>
+          <div class="skill-grid">
+
+            <div class="skill-card">
+              <div class="skill-card-top">
+                <div class="skill-icon">📄</div>
+                <div class="skill-info">
+                  <div class="skill-name">Document Summarization</div>
+                  <div class="skill-category">Core · Library</div>
+                </div>
+                <span class="skill-badge skill-active">Active</span>
+              </div>
+              <p class="skill-desc">Generates structured summaries of library files — executive summary, key points, and claims — using the configured LLM. Runs automatically during the upload pipeline.</p>
+              <div class="skill-source">agent-prompt-conversation-summarization · agent-prompt-recent-message-summarization</div>
+            </div>
+
+            <div class="skill-card">
+              <div class="skill-card-top">
+                <div class="skill-icon">🔍</div>
+                <div class="skill-info">
+                  <div class="skill-name">Content Exploration</div>
+                  <div class="skill-category">Core · Search</div>
+                </div>
+                <span class="skill-badge skill-active">Active</span>
+              </div>
+              <p class="skill-desc">Fast read-only search agent that finds wiki pages, library files, and knowledge base content. Used when Hypatia needs to look up existing content before answering.</p>
+              <div class="skill-source">agent-prompt-explore</div>
+            </div>
+
+            <div class="skill-card">
+              <div class="skill-card-top">
+                <div class="skill-icon">🧠</div>
+                <div class="skill-info">
+                  <div class="skill-name">Memory Consolidation</div>
+                  <div class="skill-category">Memory</div>
+                </div>
+                <span class="skill-badge skill-available">Available</span>
+              </div>
+              <p class="skill-desc">Periodic reflective pass over Hypatia's memory files — merges new signal from recent sessions into durable topic files, converts relative dates to absolute, and prunes stale or contradicted facts.</p>
+              <div class="skill-source">agent-prompt-dream-memory-consolidation</div>
+            </div>
+
+            <div class="skill-card">
+              <div class="skill-card-top">
+                <div class="skill-icon">📝</div>
+                <div class="skill-info">
+                  <div class="skill-name">Session Memory Updates</div>
+                  <div class="skill-category">Memory</div>
+                </div>
+                <span class="skill-badge skill-available">Available</span>
+              </div>
+              <p class="skill-desc">After each conversation, updates structured session notes with file paths, decisions, current state, and technical details — preserving section headers and italic template descriptions exactly.</p>
+              <div class="skill-source">agent-prompt-session-memory-update-instructions</div>
+            </div>
+
+            <div class="skill-card">
+              <div class="skill-card-top">
+                <div class="skill-icon">🔁</div>
+                <div class="skill-info">
+                  <div class="skill-name">Context Continuation</div>
+                  <div class="skill-category">Memory · Resilience</div>
+                </div>
+                <span class="skill-badge skill-available">Available</span>
+              </div>
+              <p class="skill-desc">When context fills up, generates a structured continuation summary (task overview, current state, discoveries, next steps) enabling seamless handoff to a new context window without losing progress.</p>
+              <div class="skill-source">system-prompt-context-compaction-summary</div>
+            </div>
+
+            <div class="skill-card">
+              <div class="skill-card-top">
+                <div class="skill-icon">✅</div>
+                <div class="skill-info">
+                  <div class="skill-name">Verification Specialist</div>
+                  <div class="skill-category">Quality</div>
+                </div>
+                <span class="skill-badge skill-available">Available</span>
+              </div>
+              <p class="skill-desc">Adversarially tests claims, facts, and assertions in library documents. Goes beyond happy-path confirmation — probes edge cases, contradictions, and unsupported statements, issuing PASS / FAIL / PARTIAL verdicts.</p>
+              <div class="skill-source">agent-prompt-verification-specialist</div>
+            </div>
+
+            <div class="skill-card">
+              <div class="skill-card-top">
+                <div class="skill-icon">🗂️</div>
+                <div class="skill-info">
+                  <div class="skill-name">Session Search</div>
+                  <div class="skill-category">Search · Memory</div>
+                </div>
+                <span class="skill-badge skill-future">Future</span>
+              </div>
+              <p class="skill-desc">Finds relevant prior conversations based on user queries — matches against tags, titles, branch names, summaries, and transcript content. Requires conversation indexing infrastructure.</p>
+              <div class="skill-source">agent-prompt-session-search-assistant</div>
+            </div>
+
+            <div class="skill-card">
+              <div class="skill-card-top">
+                <div class="skill-icon">🌐</div>
+                <div class="skill-info">
+                  <div class="skill-name">Web Page Summarizer</div>
+                  <div class="skill-category">Research · Future</div>
+                </div>
+                <span class="skill-badge skill-future">Future</span>
+              </div>
+              <p class="skill-desc">Summarizes scraped web pages concisely with quote limits and license compliance. Ready to activate once SearXNG and the scraper are wired in for research workflows.</p>
+              <div class="skill-source">agent-prompt-webfetch-summarizer</div>
+            </div>
+
+          </div>
         </div>
 
         <!-- CONNECTIONS -->

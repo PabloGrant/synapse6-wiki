@@ -523,6 +523,28 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .subtab.active { background: var(--surface); color: #a78bfa; font-weight: 700; }
 .subtab:hover:not(.active) { color: #c4b5fd; background: rgba(167,139,250,0.08); }
 .hytab-content.hidden { display: none; }
+
+/* Hypatia skill cards */
+.skill-grid { display: flex; flex-direction: column; gap: 10px; max-width: 760px; }
+.skill-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px 18px; transition: border-color 0.15s;
+}
+.skill-card:hover { border-color: rgba(167,139,250,0.35); }
+.skill-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.skill-icon { font-size: 20px; flex-shrink: 0; line-height: 1; }
+.skill-info { flex: 1; }
+.skill-name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.skill-category { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--subtext); }
+.skill-desc { font-size: 13px; color: var(--subtext); line-height: 1.65; margin-bottom: 8px; }
+.skill-source { font-size: 10px; color: var(--border); font-family: monospace; letter-spacing: 0.02em; }
+.skill-badge {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 3px 9px; border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+}
+.skill-active   { background: rgba(124,184,153,0.12); color: var(--green); border: 1px solid rgba(124,184,153,0.3); }
+.skill-available{ background: rgba(167,139,250,0.10); color: #a78bfa;     border: 1px solid rgba(167,139,250,0.3); }
+.skill-future   { background: rgba(139,148,158,0.10); color: var(--subtext); border: 1px solid var(--border); }
 .user-row {
   display: flex; align-items: center; gap: 12px;
   background: var(--card); border: 1px solid var(--border);
