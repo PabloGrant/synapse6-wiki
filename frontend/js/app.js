@@ -62,7 +62,6 @@ function showApp() {
   loadPublicSettings();
   loadNav();
   initRightSidebar();
-  loadHypatiaFonts();
 }
 
 function showAuthOverlay() {

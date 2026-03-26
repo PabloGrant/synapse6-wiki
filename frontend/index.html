@@ -294,15 +294,17 @@
       <div id="hypatia-avatar-top"></div>
       <div class="hypatia-name-block">
         <div class="hypatia-sidebar-title">HYPATIA</div>
-        <div class="hypatia-sidebar-sub">Chaos Librarian</div>
+        <div class="hypatia-sidebar-sub">CHAOS LIBRARIAN</div>
       </div>
       <button class="hypatia-font-toggle" id="font-toggle-btn" onclick="toggleFontExpression()" style="display:none">Aa</button>
     </div>
     <div id="chat-messages"></div>
-    <form id="chat-form" onsubmit="sendChat(event)">
-      <textarea id="chat-input" placeholder="Ask Hypatia…" rows="2" onkeydown="chatKeydown(event)" oninput="onChatInput()"></textarea>
-      <button type="submit" class="btn-primary" id="chat-send">Send</button>
-    </form>
+    <div id="chat-form-wrap">
+      <form id="chat-form" onsubmit="sendChat(event)">
+        <textarea id="chat-input" placeholder="Ask Hypatia…" rows="2" onkeydown="chatKeydown(event)" oninput="onChatInput()"></textarea>
+        <button type="submit" class="btn-primary" id="chat-send">Send</button>
+      </form>
+    </div>
   </aside>
 
 </div>
