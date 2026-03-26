@@ -641,6 +641,12 @@ function switchHypatiaTab(tab) {
     document.getElementById(`hytab-btn-${t}`)?.classList.toggle('active', t === tab);
     document.getElementById(`hytab-${t}`)?.classList.toggle('hidden', t !== tab);
   });
+  if (tab === 'system-prompts' && !_promptSections.length) {
+    api('GET', '/api/hypatia/prompts').then(r => {
+      _promptSections = (r.prompts || []).map(p => ({ ...p }));
+      renderPromptSections();
+    }).catch(() => {});
+  }
 }
 
 async function saveProfile(event) {
@@ -868,7 +874,6 @@ let _expandedAvatarState = null; // which state's picker is open
 async function loadHypatiaSettings() {
   try {
     const s = await api('GET', '/api/hypatia/settings');
-    document.getElementById('system-prompt-input').value = s.system_prompt || '';
     _selectedAvatars = s.avatars || {};
   } catch {}
   try {
@@ -885,6 +890,11 @@ async function loadHypatiaSettings() {
     const rf = await api('GET', '/api/hypatia/fonts');
     _fontCards = (rf.fonts || []).map(f => ({ ...f }));
     renderFontList();
+  } catch {}
+  try {
+    const rp = await api('GET', '/api/hypatia/prompts');
+    _promptSections = (rp.prompts || []).map(p => ({ ...p }));
+    renderPromptSections();
   } catch {}
 }
 
@@ -1110,12 +1120,65 @@ async function saveModelConfig() {
   }
 }
 
-async function saveSystemPrompt(e) {
-  e.preventDefault();
-  await api('PUT', '/api/hypatia/settings', {
-    system_prompt: document.getElementById('system-prompt-input').value,
-  });
-  alert('System prompt saved.');
+// ── Multi-section prompt stack ───────────────────────────────────────────────
+let _promptSections = [];
+
+function renderPromptSections() {
+  const container = document.getElementById('prompt-sections-list');
+  if (!container) return;
+  if (!_promptSections.length) {
+    container.innerHTML = '<p class="admin-placeholder">Loading prompts…</p>';
+    return;
+  }
+  container.innerHTML = _promptSections.map((p, i) => `
+    <div class="prompt-section-card" id="psc-${p.id}">
+      <div class="psc-header">
+        <label class="psc-toggle">
+          <input type="checkbox" ${p.enabled ? 'checked' : ''} onchange="_pscToggle('${p.id}',this.checked)">
+          <span class="psc-label">${esc(p.label)}</span>
+        </label>
+        <span class="psc-desc">${esc(p.description)}</span>
+        <button class="icon-btn psc-expand-btn" onclick="_pscToggleExpand('${p.id}')" title="Expand/Collapse">
+          <span id="psc-chevron-${p.id}">▾</span>
+        </button>
+      </div>
+      <div class="psc-body" id="psc-body-${p.id}">
+        <textarea class="psc-textarea" id="psc-text-${p.id}" rows="8"
+          oninput="_pscEdit('${p.id}',this.value)">${esc(p.content)}</textarea>
+      </div>
+    </div>
+  `).join('');
+}
+
+function _pscToggle(id, checked) {
+  const p = _promptSections.find(s => s.id === id);
+  if (p) p.enabled = checked;
+}
+
+function _pscEdit(id, val) {
+  const p = _promptSections.find(s => s.id === id);
+  if (p) p.content = val;
+}
+
+function _pscToggleExpand(id) {
+  const body = document.getElementById(`psc-body-${id}`);
+  const chevron = document.getElementById(`psc-chevron-${id}`);
+  const collapsed = body.classList.toggle('collapsed');
+  chevron.textContent = collapsed ? '▸' : '▾';
+}
+
+async function saveAllPrompts() {
+  const msg = document.getElementById('prompts-save-msg');
+  msg.textContent = '';
+  try {
+    await api('PUT', '/api/hypatia/prompts', { prompts: _promptSections });
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Saved';
+    setTimeout(() => msg.textContent = '', 2000);
+  } catch(e) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = e.message || 'Save failed';
+  }
 }
 
 // ── FONT ADMIN ──────────────────────────────────────────────────────────────
