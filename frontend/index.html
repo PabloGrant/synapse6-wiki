@@ -126,21 +126,12 @@
       </div>
     </div>
 
-    <!-- HYPATIA PAGE -->
-    <div id="hypatia-view" class="hidden">
-      <div class="hypatia-header">
-        <div id="hypatia-avatar-top"></div>
-        <div class="hypatia-name-block">
-          <div class="hypatia-title">HYPATIA</div>
-          <div class="hypatia-sub">Chaos Librarian</div>
-        </div>
-        <button class="hypatia-font-toggle" id="font-toggle-btn" onclick="toggleFontExpression()" style="display:none">Aa</button>
+    <!-- HOME / DASHBOARD -->
+    <div id="home-view" class="hidden">
+      <div class="home-placeholder">
+        <div class="home-placeholder-title">Dashboard</div>
+        <div class="home-placeholder-sub">Coming soon</div>
       </div>
-      <div id="chat-messages"></div>
-      <form id="chat-form" onsubmit="sendChat(event)">
-        <textarea id="chat-input" placeholder="Ask Hypatia…" rows="2" onkeydown="chatKeydown(event)" oninput="onChatInput()"></textarea>
-        <button type="submit" class="btn-primary" id="chat-send">Send</button>
-      </form>
     </div>
 
     <!-- ADMIN PANEL -->
@@ -296,6 +287,24 @@
     </div>
 
   </main>
+
+  <!-- HYPATIA RIGHT SIDEBAR -->
+  <aside id="right-sidebar">
+    <div class="hypatia-sidebar-header">
+      <div id="hypatia-avatar-top"></div>
+      <div class="hypatia-name-block">
+        <div class="hypatia-sidebar-title">HYPATIA</div>
+        <div class="hypatia-sidebar-sub">Chaos Librarian</div>
+      </div>
+      <button class="hypatia-font-toggle" id="font-toggle-btn" onclick="toggleFontExpression()" style="display:none">Aa</button>
+    </div>
+    <div id="chat-messages"></div>
+    <form id="chat-form" onsubmit="sendChat(event)">
+      <textarea id="chat-input" placeholder="Ask Hypatia…" rows="2" onkeydown="chatKeydown(event)" oninput="onChatInput()"></textarea>
+      <button type="submit" class="btn-primary" id="chat-send">Send</button>
+    </form>
+  </aside>
+
 </div>
 
 <script src="/static/js/app.js"></script>

@@ -61,6 +61,7 @@ function showApp() {
 
   loadPublicSettings();
   loadNav();
+  initRightSidebar();
   loadHypatiaFonts();
 }
 
@@ -139,7 +140,7 @@ function renderNav(data) {
   const tree = document.getElementById('nav-tree');
   let html = '';
 
-  html += `<div class="nav-link hypatia" id="nav-__hypatia__" onclick="showHypatia()"><img src="/vendor/icons/bot-message-square.svg" width="15" height="15" alt=""> Hypatia</div>`;
+  html += `<div class="nav-link" id="nav-__home__" onclick="showHome()"><img src="/vendor/icons/home.svg" width="15" height="15" alt=""> Home</div>`;
   html += `<div class="nav-link dropbox" id="nav-__dropbox__" onclick="showDropbox()"><img src="/vendor/icons/upload.svg" width="15" height="15" alt=""> Library Dropbox</div>`;
 
   const cats = data.categories || [];
@@ -458,11 +459,13 @@ function _loadHypatiaSession() {
   } catch { return null; }
 }
 
-async function showHypatia() {
-  currentSlug = '__hypatia__';
-  showView('hypatia');
-  setActiveNav('__hypatia__');
+function showHome() {
+  currentSlug = '__home__';
+  showView('home');
+  setActiveNav('__home__');
+}
 
+async function initRightSidebar() {
   if (!Object.keys(_hypatiaAvatars).length) {
     try {
       const r = await api('GET', '/api/hypatia/avatar');
@@ -470,9 +473,7 @@ async function showHypatia() {
     } catch {}
   }
 
-  // Always refresh fonts when entering Hypatia (may have been added mid-session)
   await loadHypatiaFonts();
-
   initHypatiaAvatar();
   _updateFontToggleBtn();
 
@@ -1289,9 +1290,11 @@ async function addPage(e) {
 
 // ── VIEW SWITCHER ──────────────────────────────────────────────────────────
 function showView(view) {
-  ['page','edit','hypatia','admin','dropbox'].forEach(v => {
+  ['page','edit','home','admin','dropbox'].forEach(v => {
     document.getElementById(`${v}-view`).classList.toggle('hidden', v !== view);
   });
+  // Hide right sidebar on admin only
+  document.getElementById('app').classList.toggle('no-right-sidebar', view === 'admin');
 }
 
 function showDropbox() {
