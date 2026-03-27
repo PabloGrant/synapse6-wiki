@@ -100,6 +100,17 @@
     </div>
   </div>
 
+  <!-- DIFF MODAL -->
+  <div id="diff-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeDiffModal()">
+    <div class="modal-box diff-modal-box">
+      <div class="modal-title">
+        <span id="diff-modal-title">Version Diff</span>
+        <button class="btn-ghost" style="font-size:12px;padding:3px 8px" onclick="closeDiffModal()">✕ Close</button>
+      </div>
+      <div id="diff-output" class="diff-output"></div>
+    </div>
+  </div>
+
   <!-- MERMAID CHART MODAL -->
   <div id="mermaid-modal" class="modal-overlay hidden">
     <div class="modal-box" style="width:560px;max-width:95vw">

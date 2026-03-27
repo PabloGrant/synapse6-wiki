@@ -342,9 +342,88 @@ function renderHistory(slug, versions) {
     <div class="history-item">
       <span class="history-ts">${fmtDate(v.timestamp)}</span>
       <span class="history-editor">${esc(v.editor)}</span>
-      ${i === 0 ? '<span style="font-size:11px;color:var(--green)">current</span>' : `<button class="btn-ghost" style="font-size:12px;padding:4px 10px" onclick="rollback('${slug}','${v.filename}')">Restore</button>`}
+      <span class="history-actions">
+        ${i === 0
+          ? '<span style="font-size:11px;color:var(--green)">current</span>'
+          : `<button class="btn-ghost" style="font-size:12px;padding:4px 10px" onclick="showDiff('${slug}','${v.filename}','${esc(fmtDate(v.timestamp))}')">Diff</button>
+             <button class="btn-ghost" style="font-size:12px;padding:4px 10px" onclick="rollback('${slug}','${v.filename}')">Restore</button>`
+        }
+      </span>
     </div>
   `).join('');
+}
+
+function closeDiffModal() {
+  document.getElementById('diff-modal').classList.add('hidden');
+}
+
+async function showDiff(slug, filename, label) {
+  document.getElementById('diff-modal-title').textContent = `Diff — ${label}`;
+  document.getElementById('diff-output').innerHTML = '<div style="color:var(--subtext);padding:16px 0">Loading…</div>';
+  document.getElementById('diff-modal').classList.remove('hidden');
+  try {
+    const [current, old] = await Promise.all([
+      api('GET', `/api/pages/${slug}`),
+      api('GET', `/api/pages/${slug}/version/${filename}`),
+    ]);
+    const ops = _lineDiff(old.content || '', current.content || '');
+    // Only render lines with changes + 3 lines of context around them
+    const lines = _diffWithContext(ops, 3);
+    if (!lines.length) {
+      document.getElementById('diff-output').innerHTML = '<div style="color:var(--subtext);padding:16px 0">No differences found.</div>';
+      return;
+    }
+    document.getElementById('diff-output').innerHTML =
+      '<pre class="diff-pre">' + lines.map(l => {
+        if (l === null) return '<span class="diff-sep">…</span>';
+        const cls = l.type === 'add' ? 'diff-add' : l.type === 'del' ? 'diff-del' : 'diff-eq';
+        const prefix = l.type === 'add' ? '+ ' : l.type === 'del' ? '− ' : '  ';
+        return `<span class="${cls}">${esc(prefix + l.text)}</span>`;
+      }).join('\n') + '</pre>';
+  } catch(e) {
+    document.getElementById('diff-output').innerHTML = `<div style="color:var(--danger);padding:16px 0">Error: ${e.message}</div>`;
+  }
+}
+
+function _lineDiff(oldText, newText) {
+  const a = oldText.split('\n'), b = newText.split('\n');
+  const m = a.length, n = b.length;
+  // LCS table
+  const dp = Array.from({length: m + 1}, () => new Uint32Array(n + 1));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  // Traceback
+  const ops = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i-1] === b[j-1]) {
+      ops.push({type:'eq',  text: a[i-1]}); i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+      ops.push({type:'add', text: b[j-1]}); j--;
+    } else {
+      ops.push({type:'del', text: a[i-1]}); i--;
+    }
+  }
+  return ops.reverse();
+}
+
+function _diffWithContext(ops, ctx) {
+  // Mark which lines are near a change
+  const near = new Uint8Array(ops.length);
+  for (let i = 0; i < ops.length; i++) {
+    if (ops[i].type !== 'eq') {
+      for (let k = Math.max(0, i - ctx); k <= Math.min(ops.length - 1, i + ctx); k++)
+        near[k] = 1;
+    }
+  }
+  const out = [];
+  let skipping = false;
+  for (let i = 0; i < ops.length; i++) {
+    if (near[i]) { skipping = false; out.push(ops[i]); }
+    else if (!skipping) { skipping = true; out.push(null); } // separator
+  }
+  return out;
 }
 
 function toggleHistory() {

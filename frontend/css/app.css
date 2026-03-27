@@ -318,7 +318,22 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 }
 .history-item:last-child { border-bottom: none; }
 .history-ts { color: var(--subtext); font-size: 12px; min-width: 140px; }
-.history-editor { color: var(--green-light); }
+.history-editor { color: var(--green-light); flex: 1; }
+.history-actions { display: flex; gap: 6px; align-items: center; margin-left: auto; }
+
+/* ── DIFF MODAL ── */
+.diff-modal-box { width: 780px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column; }
+.diff-output { overflow-y: auto; flex: 1; margin-top: 4px; }
+.diff-pre {
+  font-family: monospace; font-size: 13px; line-height: 1.55;
+  white-space: pre-wrap; word-break: break-all;
+  background: var(--bg); border-radius: 6px;
+  padding: 12px; margin: 0;
+}
+.diff-add  { display: block; background: rgba(63,185,80,0.15); color: #7ee787; }
+.diff-del  { display: block; background: rgba(248,81,73,0.15);  color: #f97583; }
+.diff-eq   { display: block; color: var(--subtext); }
+.diff-sep  { display: block; color: var(--subtext); padding: 2px 0; user-select: none; }
 
 /* ── MARKDOWN BODY ── */
 .markdown-body { font-size: 16px; line-height: 1.8; max-width: 800px; }
