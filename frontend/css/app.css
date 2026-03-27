@@ -181,7 +181,7 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .nav-category {
   margin-top: 6px;
   padding: 6px 12px 5px 10px;
-  font-size: 10px; font-weight: 800;
+  font-size: 11px; font-weight: 800;
   text-transform: uppercase; letter-spacing: 0.12em;
   color: var(--text);
   display: flex; align-items: center; justify-content: space-between;
@@ -321,11 +321,11 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .history-editor { color: var(--green-light); }
 
 /* ── MARKDOWN BODY ── */
-.markdown-body { font-size: 15px; line-height: 1.75; max-width: 800px; }
-.markdown-body h1 { font-size: 28px; font-weight: 800; margin: 0 0 20px; letter-spacing: -0.02em; }
-.markdown-body h2 { font-size: 20px; font-weight: 700; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-.markdown-body h3 { font-size: 16px; font-weight: 700; margin: 24px 0 8px; color: var(--green-light); }
-.markdown-body p { margin-bottom: 14px; color: var(--subtext); }
+.markdown-body { font-size: 16px; line-height: 1.8; max-width: 800px; }
+.markdown-body h1 { font-size: 30px; font-weight: 800; margin: 0 0 20px; letter-spacing: -0.02em; }
+.markdown-body h2 { font-size: 22px; font-weight: 700; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.markdown-body h3 { font-size: 17px; font-weight: 700; margin: 24px 0 8px; color: var(--green-light); }
+.markdown-body p { margin-bottom: 16px; color: var(--subtext); }
 .markdown-body a { color: var(--green); text-decoration: none; }
 .markdown-body a:hover { text-decoration: underline; }
 .markdown-body ul, .markdown-body ol { padding-left: 22px; margin-bottom: 14px; }
@@ -603,8 +603,8 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 }
 .chat-ts { font-size: 10px; color: #666; }
 .chat-bubble {
-  width: 100%; padding: 10px 14px; border-radius: 8px; line-height: 1.65;
-  font-size: 14px; box-sizing: border-box;
+  width: 100%; padding: 10px 14px; border-radius: 8px; line-height: 1.7;
+  font-size: 15px; box-sizing: border-box;
   overflow-wrap: break-word; word-break: break-word; min-width: 0;
 }
 .chat-msg.user .chat-bubble { background: rgba(124,184,153,0.15); border: 1px solid rgba(124,184,153,0.25); color: #e6edf3; }
