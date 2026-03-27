@@ -208,11 +208,35 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 
 .nav-loading { padding: 16px 12px; font-size: 13px; color: var(--subtext); }
 
-.sidebar-footer {
-  padding: 10px 16px;
+.sidebar-quick-create {
+  display: flex; gap: 6px;
+  padding: 8px 10px;
   border-top: 1px solid var(--border);
   margin-top: auto;
 }
+.btn-quick-create {
+  flex: 1; background: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--subtext); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em; cursor: pointer;
+  padding: 5px 4px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.btn-quick-create:hover {
+  color: var(--text); border-color: var(--text); background: var(--card-hover);
+}
+.sidebar-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+}
+.col-form-label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 12px; font-weight: 600; color: var(--subtext);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.col-form-label input,
+.col-form-label select { margin-top: 2px; }
 
 .sidebar-wordmark {
   font-size: 10px; color: var(--subtext); letter-spacing: 0.08em;

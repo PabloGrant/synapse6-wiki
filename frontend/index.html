@@ -50,10 +50,54 @@
       <div class="nav-loading">Loading…</div>
     </nav>
 
+    <div class="sidebar-quick-create editor-only hidden">
+      <button class="btn-quick-create" onclick="openQuickPage()">+ PAGE</button>
+      <button class="btn-quick-create" onclick="openQuickCategory()">+ CATEGORY</button>
+    </div>
     <div class="sidebar-footer">
       <span class="sidebar-wordmark">SYNAPSE6 &nbsp;·&nbsp; INTERNAL USE ONLY</span>
     </div>
   </aside>
+
+  <!-- QUICK CREATE PAGE MODAL -->
+  <div id="qp-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">New Page</div>
+      <form onsubmit="submitQuickPage(event)" class="col-form">
+        <label class="col-form-label">Page name
+          <input type="text" id="qp-name" placeholder="e.g. Onboarding Guide" required autocomplete="off">
+        </label>
+        <label class="col-form-label">Category
+          <select id="qp-category" required></select>
+        </label>
+        <label class="col-form-label">Parent page <span style="font-weight:400;color:var(--subtext)">(optional — creates subpage)</span>
+          <select id="qp-parent"><option value="">— none —</option></select>
+        </label>
+        <div id="qp-err" class="form-error"></div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button type="submit" class="btn-primary">Create &amp; Edit</button>
+          <button type="button" class="btn-ghost" onclick="closeQuickModals()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- QUICK CREATE CATEGORY MODAL -->
+  <div id="qc-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-title">New Category</div>
+      <form onsubmit="submitQuickCategory(event)" class="col-form">
+        <label class="col-form-label">Category name
+          <input type="text" id="qc-name" placeholder="e.g. Engineering" required autocomplete="off">
+        </label>
+        <div id="qc-err" class="form-error"></div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button type="submit" class="btn-primary">Create</button>
+          <button type="button" class="btn-ghost" onclick="closeQuickModals()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- MAIN CONTENT -->
   <main id="main">

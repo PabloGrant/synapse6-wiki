@@ -222,6 +222,75 @@ function setActiveNav(slug) {
   if (el) el.classList.add('active');
 }
 
+// ── QUICK CREATE ────────────────────────────────────────────────────────────
+function closeQuickModals() {
+  document.getElementById('qp-modal').classList.add('hidden');
+  document.getElementById('qc-modal').classList.add('hidden');
+}
+
+function openQuickPage() {
+  const cats = (navData?.categories || []);
+  const catSel = document.getElementById('qp-category');
+  const parentSel = document.getElementById('qp-parent');
+  catSel.innerHTML = cats.map(c => `<option value="${esc(c.slug)}">${esc(c.display_name || c.name)}</option>`).join('');
+  parentSel.innerHTML = '<option value="">— none —</option>';
+  // populate parent options from selected category
+  function refreshParents() {
+    const slug = catSel.value;
+    const cat = cats.find(c => c.slug === slug);
+    const pages = cat?.pages || [];
+    parentSel.innerHTML = '<option value="">— none —</option>' +
+      pages.map(p => `<option value="${esc(p.slug)}">${esc(p.display_name || p.name)}</option>`).join('');
+  }
+  catSel.onchange = refreshParents;
+  refreshParents();
+  document.getElementById('qp-name').value = '';
+  document.getElementById('qp-err').textContent = '';
+  document.getElementById('qp-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('qp-name').focus(), 50);
+}
+
+function openQuickCategory() {
+  document.getElementById('qc-name').value = '';
+  document.getElementById('qc-err').textContent = '';
+  document.getElementById('qc-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('qc-name').focus(), 50);
+}
+
+async function submitQuickPage(e) {
+  e.preventDefault();
+  const err = document.getElementById('qp-err');
+  err.textContent = '';
+  const name = document.getElementById('qp-name').value.trim();
+  const category_slug = document.getElementById('qp-category').value;
+  const parent_slug = document.getElementById('qp-parent').value || null;
+  try {
+    const r = await api('POST', '/api/nav/page', { name, category_slug, ...(parent_slug ? { parent_slug } : {}) });
+    closeQuickModals();
+    await loadNav();
+    // Open the new page directly in edit mode
+    const cat = (navData?.categories || []).find(c => c.slug === category_slug);
+    loadPage(r.slug, cat?.display_name || cat?.name || '', name);
+    setTimeout(enterEditMode, 300);
+  } catch (ex) {
+    err.textContent = ex.message || 'Failed to create page';
+  }
+}
+
+async function submitQuickCategory(e) {
+  e.preventDefault();
+  const err = document.getElementById('qc-err');
+  err.textContent = '';
+  const name = document.getElementById('qc-name').value.trim();
+  try {
+    await api('POST', '/api/nav/category', { name });
+    closeQuickModals();
+    await loadNav();
+  } catch (ex) {
+    err.textContent = ex.message || 'Failed to create category';
+  }
+}
+
 // ── PAGES ──────────────────────────────────────────────────────────────────
 async function loadPage(slug, cat, page, sub) {
   currentSlug = slug;
