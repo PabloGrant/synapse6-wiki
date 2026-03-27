@@ -179,20 +179,25 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 #nav-tree { flex: 1; padding: 8px 0; overflow-y: auto; }
 
 .nav-category {
-  padding: 6px 12px 2px;
-  font-size: 10px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.1em;
-  color: var(--subtext);
+  margin-top: 6px;
+  padding: 6px 12px 5px 10px;
+  font-size: 10px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--text);
   display: flex; align-items: center; justify-content: space-between;
+  background: rgba(124,184,153,0.07);
+  border-top: 1px solid var(--border);
+  border-left: 3px solid var(--green);
 }
+#nav-tree > .nav-category:first-of-type { margin-top: 10px; }
 
 .nav-link {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px;
-  font-size: 11px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.07em;
+  padding: 6px 12px 6px 14px;
+  font-size: 11px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.06em;
   color: var(--subtext);
-  border-left: 2px solid transparent;
+  border-left: 3px solid transparent;
   cursor: pointer;
   transition: all 0.12s;
   text-decoration: none;
