@@ -21,15 +21,22 @@ function toggleTheme() {
   applyTheme(next);
 }
 
+const IS_POPOUT = new URLSearchParams(window.location.search).has('popout');
+
 document.addEventListener('DOMContentLoaded', async () => {
   applyTheme(localStorage.getItem('theme') || 'dark');
   marked.setOptions({ gfm: true, breaks: true });
   mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
-  // Load allowed domain hint for registration form
-  try {
-    const d = await api('GET', '/api/auth/domain');
-    document.getElementById('reg-domain-hint').textContent = `Requires a @${d.domain} email address`;
-  } catch {}
+  if (IS_POPOUT) {
+    document.body.classList.add('chat-popout');
+    document.title = 'Hypatia';
+  } else {
+    // Load allowed domain hint for registration form
+    try {
+      const d = await api('GET', '/api/auth/domain');
+      document.getElementById('reg-domain-hint').textContent = `Requires a @${d.domain} email address`;
+    } catch {}
+  }
   await checkAuth();
   document.body.classList.remove('loading');
 });
@@ -60,6 +67,10 @@ function showApp() {
 
   document.getElementById('admin-btn').style.display = '';
 
+  if (IS_POPOUT) {
+    initRightSidebar();
+    return;
+  }
   loadPublicSettings();
   loadNav();
   initRightSidebar();
@@ -1262,6 +1273,16 @@ function toggleHypatiaExpand() {
   const expanded = document.body.classList.toggle('hypatia-expanded');
   const btn = document.getElementById('chat-expand-btn');
   if (btn) btn.innerHTML = expanded ? '&#x2923;' : '&#x2922;';
+}
+
+function popoutChat() {
+  const w = 780, h = window.screen.availHeight || 900;
+  const left = window.screen.availWidth - w;
+  window.open(
+    '/?popout',
+    'hypatia-chat',
+    `width=${w},height=${h},left=${left},top=0,resizable=yes,scrollbars=no`
+  );
 }
 
 // Beacon on page unload (fire-and-forget, browser may discard if too slow)

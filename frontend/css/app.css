@@ -1130,6 +1130,29 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 }
 .chat-expand-btn:hover { color: var(--text); background: var(--card-hover); }
 
+/* ── POPOUT BUTTON ── */
+.chat-popout-btn {
+  background: none; border: none;
+  color: var(--subtext); font-size: 16px; cursor: pointer;
+  padding: 4px 6px; border-radius: 4px; line-height: 1;
+  transition: color 0.15s, background 0.15s;
+}
+.chat-popout-btn:hover { color: var(--text); background: var(--card-hover); }
+
+/* ── POPOUT MODE ── */
+body.chat-popout #auth-overlay { position: fixed; inset: 0; z-index: 9999; }
+body.chat-popout #left-sidebar,
+body.chat-popout #topbar,
+body.chat-popout #main { display: none !important; }
+body.chat-popout #app { display: block !important; }
+body.chat-popout #right-sidebar {
+  position: fixed; inset: 0;
+  width: 100% !important;
+  border-left: none;
+}
+body.chat-popout .chat-popout-btn,
+body.chat-popout .chat-expand-btn { display: none; }
+
 /* ── HYPATIA EXPANDED STATE ── */
 #right-sidebar { transition: width 0.25s ease; }
 #topbar        { transition: right 0.25s ease; }
