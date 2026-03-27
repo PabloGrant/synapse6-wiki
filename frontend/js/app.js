@@ -339,15 +339,18 @@ function renderPageMeta(version) {
 function renderHistory(slug, versions) {
   const list = document.getElementById('history-list');
   if (!versions.length) { list.innerHTML = '<div style="color:var(--subtext);font-size:13px">No versions yet</div>'; return; }
+  const isSA = currentUser?.role === 'superadmin';
   list.innerHTML = versions.map((v, i) => `
     <div class="history-item">
       <span class="history-ts">${fmtDate(v.timestamp)}</span>
       <span class="history-editor">${esc(v.editor)}</span>
       <span class="history-actions">
         ${i === 0
-          ? '<span style="font-size:11px;color:var(--green)">current</span>'
+          ? `<span style="font-size:11px;color:var(--green)">current</span>
+             ${isSA ? `<button class="btn-ghost btn-ghost danger" style="font-size:12px;padding:4px 10px" onclick="deleteVersion('${slug}','${v.filename}',${i})">Delete</button>` : ''}`
           : `<button class="btn-ghost" style="font-size:12px;padding:4px 10px" onclick="showDiff('${slug}','${v.filename}','${esc(fmtDate(v.timestamp))}')">Diff</button>
-             <button class="btn-ghost" style="font-size:12px;padding:4px 10px" onclick="rollback('${slug}','${v.filename}')">Restore</button>`
+             <button class="btn-ghost" style="font-size:12px;padding:4px 10px" onclick="rollback('${slug}','${v.filename}')">Restore</button>
+             ${isSA ? `<button class="btn-ghost btn-ghost danger" style="font-size:12px;padding:4px 10px" onclick="deleteVersion('${slug}','${v.filename}',${i})">Delete</button>` : ''}`
         }
       </span>
     </div>
@@ -434,6 +437,14 @@ function toggleHistory() {
 async function rollback(slug, filename) {
   if (!confirm('Restore this version? It will become the current version.')) return;
   await api('POST', `/api/pages/${slug}/rollback/${filename}`);
+  loadPage(slug, ...currentBreadcrumbParts());
+}
+
+async function deleteVersion(slug, filename, index) {
+  const label = index === 0 ? 'current version' : 'this version';
+  const extra = index === 0 ? '\n\nThis is the CURRENT version — the previous version will become current and be re-indexed.' : '';
+  if (!confirm(`Permanently delete ${label}? This cannot be undone.${extra}`)) return;
+  await api('DELETE', `/api/pages/${slug}/version/${filename}`);
   loadPage(slug, ...currentBreadcrumbParts());
 }
 

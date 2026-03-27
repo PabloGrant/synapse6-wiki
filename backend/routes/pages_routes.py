@@ -230,6 +230,43 @@ async def rollback(slug: str, filename: str, user=Depends(require_role("editor")
     return {"ok": True, "filename": new_filename}
 
 
+@router.delete("/{slug}/version/{filename}", dependencies=[Depends(require_role("superadmin"))])
+async def delete_version(slug: str, filename: str):
+    """Delete a single version file. If it was the current version, re-index from the new latest."""
+    # Safety: filename must look like a valid version file, no path traversal
+    if "/" in filename or "\\" in filename or not filename.endswith(".md"):
+        raise HTTPException(400, "Invalid filename")
+    path = os.path.join(_page_dir(slug), filename)
+    if not os.path.exists(path):
+        raise HTTPException(404, "Version not found")
+
+    versions_before = _list_versions(slug)
+    was_current = versions_before and versions_before[0]["filename"] == filename
+
+    os.remove(path)
+
+    if was_current:
+        versions_after = _list_versions(slug)
+        if versions_after:
+            # Re-index from the new latest version
+            new_path = os.path.join(_page_dir(slug), versions_after[0]["filename"])
+            try:
+                async with aiofiles.open(new_path, "r") as f:
+                    content = await f.read()
+                asyncio.create_task(_index_page(
+                    slug, content,
+                    versions_after[0]["timestamp"],
+                    versions_after[0]["editor"],
+                ))
+            except Exception:
+                pass
+        else:
+            # No versions left — remove from Qdrant entirely
+            await _deindex_page(slug)
+
+    return {"ok": True}
+
+
 @router.delete("/{slug}", dependencies=[Depends(require_role("admin"))])
 async def delete_page(slug: str):
     import shutil
