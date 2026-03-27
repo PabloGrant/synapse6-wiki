@@ -15,6 +15,7 @@ from routes.hypatia_routes import router as hypatia_router
 from routes.settings_routes import router as settings_router
 from routes.library_routes import router as library_router
 from routes.search_routes import router as search_router
+from routes.dashboard_routes import router as dashboard_router
 
 app = FastAPI(title="Synapse6 Wiki", docs_url=None, redoc_url=None)
 
@@ -50,6 +51,7 @@ app.include_router(hypatia_router)
 app.include_router(settings_router)
 app.include_router(library_router)
 app.include_router(search_router)
+app.include_router(dashboard_router)
 
 STATIC_DIR = os.environ.get("STATIC_DIR", "/app/static")
 DATA_VENDOR_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "vendor")

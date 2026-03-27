@@ -259,9 +259,59 @@
 
     <!-- HOME / DASHBOARD -->
     <div id="home-view" class="hidden">
-      <div class="home-placeholder">
-        <div class="home-placeholder-title">Dashboard</div>
-        <div class="home-placeholder-sub">Coming soon</div>
+      <div id="dash-loading" style="color:var(--subtext);padding:40px 0">Loading dashboard…</div>
+      <div id="dash-content" class="hidden">
+
+        <!-- Stats row -->
+        <div class="dash-stats">
+          <div class="dash-stat"><div class="dash-stat-n" id="ds-pages">—</div><div class="dash-stat-l">Articles</div></div>
+          <div class="dash-stat"><div class="dash-stat-n" id="ds-files">—</div><div class="dash-stat-l">Documents</div></div>
+          <div class="dash-stat"><div class="dash-stat-n" id="ds-cats">—</div><div class="dash-stat-l">Categories</div></div>
+        </div>
+
+        <!-- Main grid: 2 cols -->
+        <div class="dash-grid">
+
+          <!-- LEFT col -->
+          <div class="dash-col">
+
+            <!-- Recent Comments -->
+            <div class="dash-card">
+              <div class="dash-card-title">Recent Comments</div>
+              <div id="dash-comments"></div>
+            </div>
+
+            <!-- Recently Edited Pages -->
+            <div class="dash-card">
+              <div class="dash-card-title">Recently Edited</div>
+              <div id="dash-pages"></div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT col -->
+          <div class="dash-col">
+
+            <!-- Recent Documents -->
+            <div class="dash-card">
+              <div class="dash-card-title">Recent Documents</div>
+              <div id="dash-files"></div>
+            </div>
+
+            <!-- Key Customers -->
+            <div class="dash-card">
+              <div class="dash-card-title">Key Customers</div>
+              <div id="dash-customers"></div>
+            </div>
+
+            <!-- Team -->
+            <div class="dash-card">
+              <div class="dash-card-title">Team</div>
+              <div id="dash-team"></div>
+            </div>
+
+          </div>
+        </div>
       </div>
     </div>
 

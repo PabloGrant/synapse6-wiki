@@ -763,6 +763,113 @@ function showHome() {
   currentSlug = '__home__';
   showView('home');
   setActiveNav('__home__');
+  loadDashboard();
+}
+
+async function loadDashboard() {
+  document.getElementById('dash-loading').classList.remove('hidden');
+  document.getElementById('dash-content').classList.add('hidden');
+  try {
+    const d = await api('GET', '/api/dashboard');
+    _renderDashStats(d.stats);
+    _renderDashComments(d.recent_comments || []);
+    _renderDashPages(d.recent_pages || []);
+    _renderDashFiles(d.recent_files || []);
+    _renderDashTeam(d.team || []);
+    _renderDashCustomers(d.customers || []);
+    document.getElementById('dash-loading').classList.add('hidden');
+    document.getElementById('dash-content').classList.remove('hidden');
+  } catch (ex) {
+    document.getElementById('dash-loading').textContent = 'Failed to load dashboard.';
+  }
+}
+
+function _renderDashStats(stats) {
+  document.getElementById('ds-pages').textContent = stats.pages ?? '—';
+  document.getElementById('ds-files').textContent = stats.files ?? '—';
+  document.getElementById('ds-cats').textContent  = stats.categories ?? '—';
+}
+
+function _renderDashComments(comments) {
+  const el = document.getElementById('dash-comments');
+  if (!comments.length) {
+    el.innerHTML = '<div class="dash-empty">No comments yet.</div>';
+    return;
+  }
+  el.innerHTML = comments.map(c => {
+    const truncated = esc(c.text.length > 160 ? c.text.slice(0, 160) + '…' : c.text);
+    const ts = c.created_at ? fmtDate(c.created_at) : '';
+    return `<div class="dash-comment">
+  <div class="dash-comment-meta">
+    <span class="dash-comment-page" onclick="loadPage(${JSON.stringify(c.slug)}, '', ${JSON.stringify(c.page_title)})">${esc(c.page_title)}</span>
+    <span class="dash-comment-author">${esc(c.author)}</span>
+    <span class="dash-comment-ts">${esc(ts)}</span>
+  </div>
+  <div class="dash-comment-text">${truncated}</div>
+</div>`;
+  }).join('');
+}
+
+function _renderDashPages(pages) {
+  const el = document.getElementById('dash-pages');
+  if (!pages.length) {
+    el.innerHTML = '<div class="dash-empty">No pages yet.</div>';
+    return;
+  }
+  el.innerHTML = pages.map(p => {
+    const ts = p.timestamp ? fmtDate(p.timestamp) : '';
+    return `<div class="dash-page-item" onclick="loadPage(${JSON.stringify(p.slug)}, '', ${JSON.stringify(p.title)})">
+  <span class="dash-page-title">${esc(p.title)}</span>
+  <span class="dash-page-meta">${esc(ts)} · ${esc(p.editor)}</span>
+</div>`;
+  }).join('');
+}
+
+function _renderDashFiles(files) {
+  const el = document.getElementById('dash-files');
+  if (!files.length) {
+    el.innerHTML = '<div class="dash-empty">No documents yet.</div>';
+    return;
+  }
+  el.innerHTML = files.map(f => {
+    const dt = f.upload_date
+      ? new Date(f.upload_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : '';
+    const sumText = f.summary && f.summary.length > 200 ? f.summary.slice(0, 200) + '…' : (f.summary || '');
+    return `<div class="dash-file-item">
+  <div class="dash-file-name">${esc(f.original_filename)}</div>
+  <div class="dash-file-meta">${esc(dt)} · ${esc(f.uploaded_by)}</div>${sumText ? `
+  <div class="dash-file-summary">${esc(sumText)}</div>` : ''}
+</div>`;
+  }).join('');
+}
+
+function _renderDashTeam(team) {
+  const el = document.getElementById('dash-team');
+  if (!team.length) {
+    el.innerHTML = '<div class="dash-empty">No team members configured.</div>';
+    return;
+  }
+  el.innerHTML = team.map(m =>
+    `<div class="dash-team-item">
+  <span class="dash-team-name">${esc(m.name)}</span>
+  <span class="dash-team-focus">${esc(m.focus)}</span>
+</div>`
+  ).join('');
+}
+
+function _renderDashCustomers(customers) {
+  const el = document.getElementById('dash-customers');
+  if (!customers.length) {
+    el.innerHTML = '<div class="dash-empty">No customers configured.</div>';
+    return;
+  }
+  el.innerHTML = customers.map(c =>
+    `<div class="dash-customer-item">
+  <span class="dash-customer-name">${esc(c.name)}</span>
+  <span class="dash-customer-notes">${esc(c.notes)}</span>
+</div>`
+  ).join('');
 }
 
 async function initRightSidebar() {
