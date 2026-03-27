@@ -2449,11 +2449,14 @@ async function libraryViewDoc(fileId, filename) {
 
 // ── Files tab ────────────────────────────────────────────────────────────
 
+let _libraryFileCache = [];
+
 async function libraryLoadFiles() {
   const el = document.getElementById('library-file-list');
   try {
     const r = await api('GET', '/api/library/files');
     const files = r.files || [];
+    _libraryFileCache = files;
     if (!files.length) {
       el.innerHTML = '<div class="dropbox-empty">No files yet. Upload some documents.</div>';
       return;
@@ -2477,6 +2480,7 @@ async function libraryLoadFiles() {
               <td>${_fmtSize(f.file_size_bytes)}</td>
               <td>${f.page_count || '—'}</td>
               <td class="library-actions">
+                ${f.summary ? `<button class="btn-ghost" onclick="libraryViewSummary('${f.id}')">Summary</button>` : ''}
                 <button class="btn-ghost danger" onclick="libraryDeleteFile('${f.id}','${esc(f.original_filename)}')">Delete</button>
               </td>
             </tr>`).join('')}
@@ -2487,6 +2491,18 @@ async function libraryLoadFiles() {
   }
 }
 
+
+function libraryViewSummary(fileId) {
+  const f = _libraryFileCache.find(x => x.id === fileId);
+  if (!f) return;
+  const pts = (f.key_points || []).map(p => `<li>${esc(p)}</li>`).join('');
+  const modal = document.getElementById('lib-summary-modal');
+  document.getElementById('lib-summary-title').textContent = f.original_filename;
+  document.getElementById('lib-summary-body').innerHTML =
+    `${f.summary ? `<p style="margin:0 0 14px;line-height:1.6">${esc(f.summary)}</p>` : ''}
+     ${pts ? `<ul style="margin:0;padding-left:18px;line-height:1.8">${pts}</ul>` : ''}`;
+  modal.classList.remove('hidden');
+}
 
 async function libraryDeleteFile(fileId, filename) {
   if (!confirm(`Delete "${filename}"? This will remove it from storage and the search index.`)) return;

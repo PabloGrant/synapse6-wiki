@@ -112,6 +112,17 @@
   </div>
 
   <!-- MERMAID CHART MODAL -->
+  <!-- Library file summary modal -->
+  <div id="lib-summary-modal" class="modal-overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+    <div class="modal-box" style="width:600px;max-width:95vw">
+      <div class="modal-title">
+        <span id="lib-summary-title"></span>
+        <button class="modal-close-btn" onclick="document.getElementById('lib-summary-modal').classList.add('hidden')">&#x2715;</button>
+      </div>
+      <div id="lib-summary-body" style="padding:16px 0 4px;font-size:14px;color:var(--text);max-height:65vh;overflow-y:auto"></div>
+    </div>
+  </div>
+
   <div id="mermaid-modal" class="modal-overlay hidden">
     <div class="modal-box" style="width:560px;max-width:95vw">
       <div class="modal-title">Insert Chart
