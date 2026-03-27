@@ -141,3 +141,35 @@ def rename_page(slug: str, body: RenameBody):
                         sp["name"] = body.name
     _save_nav(nav)
     return {"ok": True}
+
+
+class MoveBody(BaseModel):
+    category_slug: str
+    name: Optional[str] = None  # also rename in one shot if provided
+
+
+@router.patch("/page/{slug}/move", dependencies=[Depends(require_role("editor"))])
+def move_page(slug: str, body: MoveBody):
+    nav = _load_nav()
+    # Find and detach the page entry from its current category
+    entry = None
+    for cat in nav["categories"]:
+        for pg in cat["pages"]:
+            if pg["slug"] == slug:
+                entry = pg
+                cat["pages"].remove(pg)
+                break
+        if entry:
+            break
+    if not entry:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Page not found in nav")
+    if body.name:
+        entry["name"] = body.name
+    # Attach to target category
+    for cat in nav["categories"]:
+        if cat["slug"] == body.category_slug:
+            cat["pages"].append(entry)
+            break
+    _save_nav(nav)
+    return {"ok": True}

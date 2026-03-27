@@ -151,6 +151,12 @@
           <button class="btn-primary" onclick="savePage()">Save</button>
         </div>
       </div>
+      <div id="edit-properties">
+        <input type="text" id="ep-name" placeholder="Page name" autocomplete="off">
+        <select id="ep-category"></select>
+        <button class="btn-ghost" id="ep-save-btn" onclick="savePageProperties()">Rename / Move</button>
+        <span id="ep-msg" class="form-error"></span>
+      </div>
       <div id="editor-wrap">
         <div id="editor-pane">
           <div class="pane-label">Markdown</div>

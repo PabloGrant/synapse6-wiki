@@ -360,7 +360,72 @@ function enterEditMode() {
   }).catch(() => {
     document.getElementById('editor').value = '';
   });
+
+  // Populate page properties bar
+  _populatePageProperties();
+
   showView('edit');
+}
+
+function _populatePageProperties() {
+  const cats = navData?.categories || [];
+  const catSel = document.getElementById('ep-category');
+  catSel.innerHTML = cats.map(c =>
+    `<option value="${esc(c.slug)}">${esc(c.display_name || c.name)}</option>`
+  ).join('');
+
+  // Find which category this page belongs to and set name
+  let foundName = currentSlug;
+  for (const cat of cats) {
+    for (const pg of (cat.pages || [])) {
+      if (pg.slug === currentSlug) {
+        foundName = pg.display_name || pg.name || currentSlug;
+        catSel.value = cat.slug;
+        break;
+      }
+    }
+  }
+  document.getElementById('ep-name').value = foundName;
+  document.getElementById('ep-msg').textContent = '';
+}
+
+async function savePageProperties() {
+  const newName = document.getElementById('ep-name').value.trim();
+  const newCat  = document.getElementById('ep-category').value;
+  const msg     = document.getElementById('ep-msg');
+  const btn     = document.getElementById('ep-save-btn');
+  if (!newName) return;
+  msg.textContent = '';
+  btn.disabled = true;
+
+  // Find current category
+  const cats = navData?.categories || [];
+  let currentCat = null;
+  let currentName = null;
+  for (const cat of cats) {
+    for (const pg of (cat.pages || [])) {
+      if (pg.slug === currentSlug) { currentCat = cat.slug; currentName = pg.name; break; }
+    }
+    if (currentCat) break;
+  }
+
+  try {
+    if (newCat !== currentCat) {
+      // Move (also renames in one call)
+      await api('PATCH', `/api/nav/page/${currentSlug}/move`, { category_slug: newCat, name: newName });
+    } else if (newName !== currentName) {
+      await api('PATCH', `/api/nav/page/${currentSlug}/rename`, { name: newName });
+    }
+    await loadNav();
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Saved';
+    setTimeout(() => msg.textContent = '', 2000);
+  } catch (ex) {
+    msg.style.color = 'var(--danger)';
+    msg.textContent = ex.message || 'Failed';
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 function cancelEdit() { showView('page'); }

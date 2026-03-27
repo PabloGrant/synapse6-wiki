@@ -376,10 +376,29 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 /* ── EDIT VIEW ── */
 #edit-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+  margin-bottom: 0; padding-bottom: 14px; border-bottom: 1px solid var(--border);
 }
 #edit-actions { display: flex; gap: 8px; }
-#editor-wrap { display: flex; height: calc(100vh - 185px); }
+#edit-properties {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+#ep-name {
+  flex: 1; max-width: 280px;
+  font-size: 13px; padding: 5px 8px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--text);
+}
+#ep-name:focus { outline: none; border-color: var(--green); }
+#ep-category {
+  font-size: 13px; padding: 5px 8px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 5px; color: var(--text); cursor: pointer;
+}
+#ep-msg { font-size: 12px; }
+#editor-wrap { display: flex; height: calc(100vh - 210px); }
 #editor-pane, #preview-pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .pane-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--subtext); font-weight: 700; margin-bottom: 8px; }
 
