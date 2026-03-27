@@ -173,6 +173,8 @@ async def _retrieve_context(messages: list[dict], settings: dict) -> str:
     """
     Semantic retrieval: embed the last user message → Qdrant top-N →
     inject the most relevant wiki page chunks and library chunks as context.
+    For wiki pages, loads the FULL page from disk (not just the matching chunk)
+    so Hypatia sees complete content, not just the sentence that matched.
     Falls back to file-based reading if Qdrant is unavailable or empty.
     """
     from lib.pipeline import embed, qdrant_search
@@ -191,16 +193,16 @@ async def _retrieve_context(messages: list[dict], settings: dict) -> str:
         return _kb_context_fallback()
 
     try:
-        results = await qdrant_search(vectors[0], limit=14, score_threshold=0.18)
+        results = await qdrant_search(vectors[0], limit=20, score_threshold=0.18)
     except Exception:
         return _kb_context_fallback()
 
     if not results:
         return _kb_context_fallback()
 
-    # Deduplicate: best chunk per slug (wiki) / file_id (library)
-    seen_wiki: dict[str, dict] = {}
-    seen_lib: dict[str, dict] = {}
+    # Collect unique slugs (wiki) and file_ids (library) from results
+    seen_wiki: dict[str, dict] = {}   # slug → best result (for metadata)
+    seen_lib: dict[str, dict] = {}    # file_id → best result (for content)
     for r in results:
         rtype = r["payload"].get("type", "")
         if rtype == "wiki_page":
@@ -213,17 +215,42 @@ async def _retrieve_context(messages: list[dict], settings: dict) -> str:
                 seen_lib[fid] = r
 
     parts = []
+    total_chars = 0
+
+    # Wiki pages: load FULL page from disk so Hypatia has all content, not just matching chunk
     for slug, r in seen_wiki.items():
         title = r["payload"].get("page_title") or slug
-        heading = r["payload"].get("heading", "")
-        section = f" › {heading}" if heading else ""
-        content = r["payload"].get("content", "")
-        parts.append(f"### Wiki: {title}{section}\n\n{content}")
+        page_dir = os.path.join(CONTENT_DIR, slug)
+        md_files = sorted(glob.glob(os.path.join(page_dir, "*.md")), reverse=True)
+        if md_files:
+            try:
+                with open(md_files[0]) as f:
+                    full_content = f.read().strip()
+            except Exception:
+                full_content = r["payload"].get("content", "")
+        else:
+            full_content = r["payload"].get("content", "")
 
+        section = f"### Wiki: {title}\n\n{full_content}"
+        if total_chars + len(section) > LLM_MAX_CONTEXT_CHARS:
+            # Truncate to fit
+            remaining = LLM_MAX_CONTEXT_CHARS - total_chars
+            if remaining > 500:
+                section = section[:remaining] + "\n\n[…truncated]"
+            else:
+                break
+        parts.append(section)
+        total_chars += len(section)
+
+    # Library files: use the chunk content (already chunked for embedding)
     for fid, r in seen_lib.items():
         fname = r["payload"].get("original_filename", fid)
         content = r["payload"].get("content", "")
-        parts.append(f"### Library: {fname}\n\n{content}")
+        section = f"### Library: {fname}\n\n{content}"
+        if total_chars + len(section) > LLM_MAX_CONTEXT_CHARS:
+            break
+        parts.append(section)
+        total_chars += len(section)
 
     return "\n\n---\n\n".join(parts) if parts else _kb_context_fallback()
 
