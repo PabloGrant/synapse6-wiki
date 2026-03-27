@@ -63,6 +63,7 @@ function showApp() {
   loadPublicSettings();
   loadNav();
   initRightSidebar();
+  showHome();
 }
 
 function showAuthOverlay() {
