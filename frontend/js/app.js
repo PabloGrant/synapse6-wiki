@@ -2480,7 +2480,7 @@ async function libraryLoadFiles() {
               <td>${_fmtSize(f.file_size_bytes)}</td>
               <td>${f.page_count || '—'}</td>
               <td class="library-actions">
-                ${f.summary ? `<button class="btn-ghost" onclick="libraryViewSummary('${f.id}')">Summary</button>` : ''}
+                <button class="btn-ghost" onclick="libraryViewSummary('${f.id}')">Summary</button>
                 <button class="btn-ghost danger" onclick="libraryDeleteFile('${f.id}','${esc(f.original_filename)}')">Delete</button>
               </td>
             </tr>`).join('')}
