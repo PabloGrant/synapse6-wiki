@@ -737,9 +737,15 @@ function appendChatMsg(role, text, state = null) {
     ? `<div class="chat-avatar chat-avatar-hyp">HYP</div>`
     : `<div class="chat-avatar">${(currentUser?.sub?.[0] || 'U').toUpperCase()}</div>`;
 
+  const now = new Date();
+  const ts = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const tsHtml = `<span class="chat-ts">${ts}</span>`;
+
   const div = document.createElement('div');
   div.className = `chat-msg ${role}`;
-  div.innerHTML = `${avatarHtml}<div class="chat-bubble" style="${fontStyle}">${content}</div>`;
+  div.innerHTML = `
+    <div class="chat-msg-header">${avatarHtml}${tsHtml}</div>
+    <div class="chat-bubble" style="${fontStyle}">${content}</div>`;
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
   return div;
