@@ -662,6 +662,22 @@ def save_model_configs(body: ModelsBody):
     return {"ok": True}
 
 
+class ImageGenConfig(BaseModel):
+    enabled: bool = True
+    api_endpoint: str = "http://100.74.90.66:6501"
+    checkpoint: str = ""
+    vae: str = ""
+    clip_l: str = ""
+    t5xxl: str = ""
+    sampler: str = "Euler"
+    scheduler: str = "Beta"
+    steps: int = 20
+    width: int = 512
+    height: int = 512
+    cfg_scale: float = 1.0
+    distilled_cfg_scale: float = 3.0
+
+
 @router.get("/image-gen", dependencies=[Depends(require_role("superadmin"))])
 def get_image_gen_config():
     return _load_settings().get("image_gen", {})
@@ -679,21 +695,6 @@ class FetchModelsBody(BaseModel):
     provider: str
     api_endpoint: str = ""
     api_token: str = ""
-
-class ImageGenConfig(BaseModel):
-    enabled: bool = True
-    api_endpoint: str = "http://100.74.90.66:6501"
-    checkpoint: str = ""
-    vae: str = ""
-    clip_l: str = ""
-    t5xxl: str = ""
-    sampler: str = "Euler"
-    scheduler: str = "Beta"
-    steps: int = 20
-    width: int = 512
-    height: int = 512
-    cfg_scale: float = 1.0
-    distilled_cfg_scale: float = 3.0
 
 
 class TestModelBody(BaseModel):
