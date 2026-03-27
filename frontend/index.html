@@ -546,6 +546,11 @@
         <p style="font-size:13px;color:var(--subtext);margin:0 0 12px">Re-index all wiki pages into the vector database. Run this after schema changes or if Hypatia seems to be missing page content.</p>
         <button class="btn-ghost" id="reindex-btn" onclick="reindexAllPages()">Re-index All Pages</button>
         <span id="reindex-status" style="margin-left:12px;font-size:13px;color:var(--subtext)"></span>
+        <div style="margin-top:16px">
+          <p style="font-size:13px;color:var(--subtext);margin:0 0 12px">Re-summarize and re-index all library files. Run this if files are missing summaries or content in search results.</p>
+          <button class="btn-ghost" id="reindex-lib-btn" onclick="reindexAllLibraryFiles()">Re-index All Library Files</button>
+          <span id="reindex-lib-status" style="margin-left:12px;font-size:13px;color:var(--subtext)"></span>
+        </div>
       </div>
 
       <!-- SA HYPATIA TAB -->

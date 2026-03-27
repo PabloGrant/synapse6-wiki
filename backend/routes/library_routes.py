@@ -619,6 +619,118 @@ async def delete_file(file_id: str):
     return {"ok": True}
 
 
+@router.post("/reindex-all", dependencies=[Depends(require_role("superadmin"))])
+async def reindex_all_files():
+    """Re-summarize and re-embed all library files that have a markdown file on disk."""
+    _ensure_dirs()
+    file_ids = [
+        fname[:-5]
+        for fname in os.listdir(LIBRARY_DIR)
+        if fname.endswith(".json")
+    ]
+    queued = 0
+    for file_id in file_ids:
+        md_p = _md_path(file_id)
+        meta_p = _meta_path(file_id)
+        if not os.path.exists(md_p) or not os.path.exists(meta_p):
+            continue
+        asyncio.create_task(_reindex_file(file_id))
+        queued += 1
+    return {"queued": queued}
+
+
+async def _reindex_file(file_id: str):
+    """Re-run summarize + embed pipeline for an existing file using its stored markdown."""
+    meta_p = _meta_path(file_id)
+    md_p = _md_path(file_id)
+    if not os.path.exists(meta_p) or not os.path.exists(md_p):
+        return
+    with open(meta_p) as f:
+        meta = json.load(f)
+    with open(md_p) as f:
+        markdown = f.read()
+    if not markdown.strip():
+        return
+
+    settings = _load_settings()
+    original_filename = meta.get("original_filename", file_id)
+
+    try:
+        from lib.document_converter import parse_chunks
+        # Clear existing Qdrant entries for this file
+        await _qdrant_delete_by_file(file_id)
+
+        # Re-index page chunks
+        chunks = parse_chunks(markdown)
+        vectors_count = 0
+        if chunks:
+            texts = [c["content"] for c in chunks]
+            vectors = await _embed(texts, settings)
+            points = []
+            for chunk, vector in zip(chunks, vectors):
+                points.append({
+                    "id": str(uuid.uuid4()),
+                    "vector": vector,
+                    "payload": {
+                        "type": "library_page",
+                        "file_id": file_id,
+                        "original_filename": original_filename,
+                        "uploaded_by": meta.get("uploaded_by", ""),
+                        "page_number": chunk["page_number"],
+                        "page_type": chunk["page_type"],
+                        "page_title": chunk["page_title"],
+                        "content": chunk["content"],
+                        "content_length": len(chunk["content"]),
+                        "indexed_at": _now(),
+                    },
+                })
+            await _qdrant_upsert(points)
+            vectors_count = len(points)
+
+        # Re-summarize
+        summary_data = await _summarize(markdown, original_filename, settings)
+
+        # Whole-document vector
+        if summary_data.get("summary") and vectors_count > 0:
+            try:
+                key_pts = "\n".join(f"- {p}" for p in (summary_data.get("key_points") or []))
+                doc_text = f"{original_filename}\n\n{summary_data['summary']}"
+                if key_pts:
+                    doc_text += f"\n\nKey points:\n{key_pts}"
+                doc_vectors = await _embed([doc_text[:32000]], settings)
+                await _qdrant_upsert([{
+                    "id": str(uuid.uuid4()),
+                    "vector": doc_vectors[0],
+                    "payload": {
+                        "type": "library_page",
+                        "file_id": file_id,
+                        "original_filename": original_filename,
+                        "uploaded_by": meta.get("uploaded_by", ""),
+                        "page_number": 0,
+                        "page_type": "summary",
+                        "page_title": original_filename,
+                        "content": doc_text,
+                        "content_length": len(doc_text),
+                        "indexed_at": _now(),
+                    },
+                }])
+                vectors_count += 1
+            except Exception:
+                pass
+
+        # Update metadata with new summary + vector count
+        meta.update({
+            **summary_data,
+            "qdrant_indexed": vectors_count > 0,
+            "vectors_count": vectors_count,
+        })
+        with open(meta_p, "w") as f:
+            json.dump(meta, f, indent=2)
+
+    except Exception:
+        pass  # Non-fatal background task
+
+
 class SearchBody(BaseModel):
     query: str
     limit: int = 20

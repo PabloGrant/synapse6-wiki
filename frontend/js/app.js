@@ -1748,6 +1748,25 @@ async function reindexAllPages() {
   }
 }
 
+async function reindexAllLibraryFiles() {
+  const btn = document.getElementById('reindex-lib-btn');
+  const status = document.getElementById('reindex-lib-status');
+  btn.disabled = true;
+  status.style.color = 'var(--subtext)';
+  status.textContent = 'Queuing…';
+  try {
+    const r = await api('POST', '/api/library/reindex-all');
+    status.style.color = 'var(--green)';
+    status.textContent = `Queued ${r.queued} file${r.queued !== 1 ? 's' : ''} for re-indexing.`;
+  } catch (e) {
+    status.style.color = 'var(--danger)';
+    status.textContent = `Error: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { status.textContent = ''; }, 10000);
+  }
+}
+
 const AVATAR_STATES = [
   { key: 'idle',      label: 'Idle' },
   { key: 'listening', label: 'Listening' },
