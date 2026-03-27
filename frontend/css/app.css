@@ -697,6 +697,33 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .chat-bubble ul,.chat-bubble ol { padding-left: 18px; margin-bottom: 8px; }
 .chat-bubble li { margin-bottom: 3px; }
 .chat-thinking { color: #8b949e; font-style: italic; font-size: 16px; }
+
+/* ── CHAT TABLE SCROLL WRAPPER ── */
+.chat-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.chat-table-wrap table {
+  width: max-content;
+  min-width: 100%;
+  margin-bottom: 0;
+  border: none;
+}
+/* Prevent cells from word-breaking characters (e.g. "20↵25") */
+.chat-bubble td,
+.chat-bubble th {
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+/* Allow the Event/description-style columns to still wrap if they're very long */
+.chat-bubble td:not(:first-child):not(:last-child) {
+  white-space: normal;
+  min-width: 180px;
+}
 #chat-form { display: flex; gap: 8px; align-items: flex-end; }
 #chat-input {
   flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px;

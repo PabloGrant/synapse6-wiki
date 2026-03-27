@@ -1158,7 +1158,9 @@ function appendChatMsg(role, text, state = null, ts = null, image_url = null) {
 
   const content = isThinking
     ? `<span class="chat-thinking">${esc(text)}</span>`
-    : role === 'assistant' ? marked.parse(text) : `<p>${esc(text)}</p>`;
+    : role === 'assistant'
+      ? marked.parse(text).replace(/<table/g, '<div class="chat-table-wrap"><table').replace(/<\/table>/g, '</table></div>')
+      : `<p>${esc(text)}</p>`;
 
   const avatarHtml = role === 'assistant'
     ? `<div class="chat-avatar chat-avatar-hyp">HYP</div>`
