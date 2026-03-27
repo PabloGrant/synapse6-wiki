@@ -234,9 +234,6 @@
         <button class="dropbox-tab active" id="dtab-files" onclick="switchDropboxTab('files')">
           <img src="/vendor/icons/folder.svg" width="15" height="15" alt="">FILES
         </button>
-        <button class="dropbox-tab" id="dtab-summaries" onclick="switchDropboxTab('summaries')">
-          <img src="/vendor/icons/file-text.svg" width="15" height="15" alt="">SUMMARIES
-        </button>
         <button class="dropbox-tab" id="dtab-search" onclick="switchDropboxTab('search')">
           <img src="/vendor/icons/search.svg" width="15" height="15" alt="">SEARCH
         </button>
@@ -250,10 +247,6 @@
       </div>
 
       <!-- SUMMARIES TAB -->
-      <div id="dropbox-tab-summaries" class="dropbox-tab-content hidden">
-        <div id="library-summaries-list"><div class="dropbox-empty">Select a file to view its summary.</div></div>
-      </div>
-
       <!-- SEARCH TAB -->
       <div id="dropbox-tab-search" class="dropbox-tab-content hidden">
         <form class="library-search-form" onsubmit="librarySearch(event)">

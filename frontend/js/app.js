@@ -2288,7 +2288,6 @@ async function libraryLoadFiles() {
               <td>${_fmtSize(f.file_size_bytes)}</td>
               <td>${f.page_count || '—'}</td>
               <td class="library-actions">
-                <button class="btn-ghost" onclick="libraryViewSummary('${f.id}','${esc(f.original_filename)}')">Summary</button>
                 <button class="btn-ghost danger" onclick="libraryDeleteFile('${f.id}','${esc(f.original_filename)}')">Delete</button>
               </td>
             </tr>`).join('')}
@@ -2299,90 +2298,6 @@ async function libraryLoadFiles() {
   }
 }
 
-// ── Summary tab ──────────────────────────────────────────────────────────
-
-async function libraryViewSummary(fileId, filename) {
-  switchDropboxTab('summaries');
-  const el = document.getElementById('library-summaries-list');
-  el.innerHTML = '<div class="dropbox-empty">Loading…</div>';
-  try {
-    const f = await api('GET', `/api/library/files/${fileId}`);
-
-    // Build the report as markdown then render it
-    const lines = [
-      `# ${f.original_filename}`,
-      '',
-      `**Uploaded by:** ${f.uploaded_by || '—'} &nbsp;·&nbsp; **Upload date:** ${_fmtDate(f.upload_date)} &nbsp;·&nbsp; **File date:** ${_fmtDate(f.file_date)} &nbsp;·&nbsp; **Pages:** ${f.page_count || 0} &nbsp;·&nbsp; **Size:** ${_fmtSize(f.file_size_bytes)}`,
-      '',
-      '---',
-      '',
-      '## Executive Summary',
-      '',
-      f.summary || '*No summary available.*',
-      '',
-    ];
-
-    if (f.key_points?.length) {
-      lines.push('## Key Points', '');
-      f.key_points.forEach(p => lines.push(`- ${p}`));
-      lines.push('');
-    }
-
-    if (f.claims?.length) {
-      lines.push('## Claims & Assertions', '');
-      f.claims.forEach(c => lines.push(`- ${c}`));
-      lines.push('');
-    }
-
-    lines.push(
-      '---',
-      '',
-      `<button class="btn-ghost" onclick="libraryViewDoc('${f.id}','${esc(f.original_filename)}')" style="margin-bottom:24px">View Full Document →</button>`,
-      '',
-    );
-
-    // Overlaps placeholder — will be filled async below
-    const overlapId = `overlaps-${fileId}`;
-    lines.push(
-      `<div id="${overlapId}" class="library-overlaps-section">` +
-      `<div class="library-overlap-checking"><span class="library-overlap-spinner"></span> Checking for related content…</div></div>`
-    );
-
-    el.innerHTML = `<div class="library-summary-card markdown-body">${marked.parse(lines.join('\n'))}</div>`;
-
-    // Async overlap check
-    _loadOverlaps(fileId, overlapId);
-  } catch(e) {
-    el.innerHTML = `<div class="dropbox-empty">Error: ${e.message}</div>`;
-  }
-}
-
-async function _loadOverlaps(fileId, containerId) {
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  try {
-    const r = await api('GET', `/api/library/files/${fileId}/overlaps`);
-    const items = r.library || [];
-    if (!items.length) {
-      el.innerHTML = '<p class="library-overlap-none">No related content found in the library.</p>';
-      return;
-    }
-    el.innerHTML = `
-      <h2>Related Library Files</h2>
-      ${items.map(item => `
-        <div class="library-overlap-item">
-          <div class="library-overlap-header">
-            <span class="library-overlap-name">${_fileIcon(item.original_filename?.split('.').pop())}
-              <button class="library-filename-link" onclick="libraryViewSummary('${item.file_id}','${esc(item.original_filename)}')">${esc(item.original_filename)}</button>
-            </span>
-            <span class="library-overlap-score">${Math.round(item.score * 100)}% match</span>
-          </div>
-          <p class="library-overlap-snippet">${esc(item.snippet)}…</p>
-        </div>`).join('')}`;
-  } catch(e) {
-    el.innerHTML = '<p class="library-overlap-none">Could not check for related content.</p>';
-  }
-}
 
 async function libraryDeleteFile(fileId, filename) {
   if (!confirm(`Delete "${filename}"? This will remove it from storage and the search index.`)) return;
