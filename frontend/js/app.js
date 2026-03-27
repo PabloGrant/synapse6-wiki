@@ -1112,7 +1112,7 @@ async function sendChat(e) {
     'show me','can you draw','can you create','can you generate','can you make'];
   const _lowerText = text.toLowerCase();
   const _looksLikeImage = _IMAGE_KW.some(kw => _lowerText.includes(kw));
-  const _phraseDelay = _looksLikeImage ? setTimeout(() => _startImageGenPhrases(thinking), 4000) : null;
+  const _phraseDelay = _looksLikeImage ? setTimeout(() => _startImageGenPhrases(thinking), 15000) : null;
   try {
     const r = await api('POST', '/api/hypatia/chat', {
       messages: chatHistory,
