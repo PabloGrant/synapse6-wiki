@@ -639,7 +639,7 @@ async function initRightSidebar() {
     msgs.innerHTML = '';
     msgs.classList.add('no-anim');
     for (const msg of chatHistory) {
-      appendChatMsg(msg.role, msg.content, null, msg.ts || null);
+      appendChatMsg(msg.role, msg.content, null, msg.ts || null, msg.image_url || null);
     }
     msgs.classList.remove('no-anim');
     msgs.scrollTop = msgs.scrollHeight;
@@ -698,8 +698,9 @@ async function sendChat(e) {
     if (font) _currentHypatiaFont = font;
     const reply = clean || r.reply;
     const replyTs = Date.now();
-    appendChatMsg('assistant', reply, null, replyTs);
-    chatHistory.push({ role: 'assistant', content: reply, ts: replyTs });
+    const imgUrl = r.image_url || null;
+    appendChatMsg('assistant', reply, null, replyTs, imgUrl);
+    chatHistory.push({ role: 'assistant', content: reply, ts: replyTs, image_url: imgUrl });
     _saveHypatiaSession();
     setHypatiaState('idle');
   } catch (ex) {
@@ -718,7 +719,7 @@ function fadeOutMsg(el) {
   });
 }
 
-function appendChatMsg(role, text, state = null, ts = null) {
+function appendChatMsg(role, text, state = null, ts = null, image_url = null) {
   const msgs = document.getElementById('chat-messages');
   const isThinking = state === 'thinking';
 
@@ -745,10 +746,15 @@ function appendChatMsg(role, text, state = null, ts = null) {
     : new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const tsHtml = `<span class="chat-ts">${tsLabel}</span>`;
 
+  const imgHtml = image_url
+    ? `<div class="chat-img-wrap"><img class="chat-gen-img" src="${esc(image_url)}" alt="Generated image" loading="lazy"></div>`
+    : '';
+
   const div = document.createElement('div');
   div.className = `chat-msg ${role}`;
   div.innerHTML = `
     <div class="chat-msg-header">${avatarHtml}${tsHtml}</div>
+    ${imgHtml}
     <div class="chat-bubble" style="${fontStyle}">${content}</div>`;
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
@@ -1012,6 +1018,7 @@ function switchHypatiaTab(tab) {
       renderPromptSections();
     }).catch(() => {});
   }
+  if (tab === 'models') { loadImageGenSettings(); }
   if (tab === 'memory') { loadMemorySettings(); adminLoadMemoryUserList(); }
 }
 
@@ -1501,6 +1508,52 @@ async function saveModelConfig() {
   } catch(e) {
     msg.style.color = 'var(--danger)';
     msg.textContent = e.message || 'Save failed';
+  }
+}
+
+// ── Image Generation Settings ────────────────────────────────────────────────
+async function loadImageGenSettings() {
+  try {
+    const r = await api('GET', '/api/hypatia/image-gen');
+    document.getElementById('ig-enabled').checked   = r.enabled !== false;
+    document.getElementById('ig-endpoint').value    = r.api_endpoint || 'http://100.74.90.66:6501';
+    document.getElementById('ig-checkpoint').value  = r.checkpoint || '';
+    document.getElementById('ig-vae').value         = r.vae || '';
+    document.getElementById('ig-clip_l').value      = r.clip_l || '';
+    document.getElementById('ig-t5xxl').value       = r.t5xxl || '';
+    document.getElementById('ig-sampler').value     = r.sampler || 'Euler';
+    document.getElementById('ig-scheduler').value   = r.scheduler || 'Beta';
+    document.getElementById('ig-steps').value       = r.steps ?? 20;
+    document.getElementById('ig-width').value       = r.width ?? 512;
+    document.getElementById('ig-height').value      = r.height ?? 512;
+    document.getElementById('ig-cfg_scale').value   = r.cfg_scale ?? 1;
+    document.getElementById('ig-distilled_cfg').value = r.distilled_cfg_scale ?? 3;
+  } catch {}
+}
+
+async function saveImageGenSettings() {
+  const msg = document.getElementById('ig-save-msg');
+  msg.textContent = '';
+  try {
+    await api('PUT', '/api/hypatia/image-gen', {
+      enabled:            document.getElementById('ig-enabled').checked,
+      api_endpoint:       document.getElementById('ig-endpoint').value.trim(),
+      checkpoint:         document.getElementById('ig-checkpoint').value.trim(),
+      vae:                document.getElementById('ig-vae').value.trim(),
+      clip_l:             document.getElementById('ig-clip_l').value.trim(),
+      t5xxl:              document.getElementById('ig-t5xxl').value.trim(),
+      sampler:            document.getElementById('ig-sampler').value.trim(),
+      scheduler:          document.getElementById('ig-scheduler').value.trim(),
+      steps:              parseInt(document.getElementById('ig-steps').value) || 20,
+      width:              parseInt(document.getElementById('ig-width').value) || 512,
+      height:             parseInt(document.getElementById('ig-height').value) || 512,
+      cfg_scale:          parseFloat(document.getElementById('ig-cfg_scale').value) || 1,
+      distilled_cfg_scale: parseFloat(document.getElementById('ig-distilled_cfg').value) || 3,
+    });
+    msg.style.color = 'var(--green)'; msg.textContent = 'Saved';
+    setTimeout(() => msg.textContent = '', 2000);
+  } catch(e) {
+    msg.style.color = 'var(--danger)'; msg.textContent = e.message || 'Save failed';
   }
 }
 

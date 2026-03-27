@@ -716,6 +716,18 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .mc-label { display:flex; flex-direction:column; gap:4px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--subtext); flex:1; }
 .mc-label input, .mc-label select { background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:6px 10px; font-size:13px; font-weight:400; text-transform:none; letter-spacing:0; }
 
+/* ── Image Generation Settings ── */
+.ig-settings { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; }
+.ig-row { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 10px; flex-wrap: wrap; }
+.ig-row:last-child { margin-bottom: 0; }
+.ig-label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--subtext); flex: 1; min-width: 100px; }
+.ig-full { flex: 2 1 260px; }
+.ig-label input { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 10px; font-size: 13px; font-weight: 400; text-transform: none; letter-spacing: 0; width: 100%; }
+
+/* Generated image in chat */
+.chat-img-wrap { width: 100%; margin-bottom: 6px; }
+.chat-gen-img { max-width: 100%; border-radius: 8px; display: block; border: 1px solid #30363d; }
+
 .inline-form { display: flex; gap: 8px; align-items: center; }
 .inline-form.col { flex-direction: column; align-items: flex-start; max-width: 400px; }
 .inline-form input, .inline-form select {

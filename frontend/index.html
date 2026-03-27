@@ -450,7 +450,63 @@
           </div>
           <div id="embedding-model-list" style="margin-bottom:16px"></div>
 
-          <div style="display:flex;align-items:center;gap:12px;margin-bottom:32px">
+          <!-- IMAGE GENERATION -->
+          <div class="admin-section-title" style="margin-top:28px;margin-bottom:12px">Image Generation</div>
+          <div class="ig-settings">
+            <div class="ig-row">
+              <label class="ig-label ig-full">API Endpoint
+                <input type="text" id="ig-endpoint" placeholder="http://100.74.90.66:6501" autocomplete="off">
+              </label>
+              <label class="ig-label" style="flex:0 0 auto;padding-top:18px;display:flex;align-items:center;gap:6px">
+                <input type="checkbox" id="ig-enabled"> Enabled
+              </label>
+            </div>
+            <div class="ig-row">
+              <label class="ig-label ig-full">Checkpoint
+                <input type="text" id="ig-checkpoint" placeholder="sd\Flux\1-Dev\flux_dev.safetensors" autocomplete="off">
+              </label>
+            </div>
+            <div class="ig-row">
+              <label class="ig-label">VAE
+                <input type="text" id="ig-vae" placeholder="ae.safetensors" autocomplete="off">
+              </label>
+              <label class="ig-label">CLIP-L
+                <input type="text" id="ig-clip_l" placeholder="clip_l.safetensors" autocomplete="off">
+              </label>
+              <label class="ig-label">T5-XXL
+                <input type="text" id="ig-t5xxl" placeholder="t5xxl_fp16.safetensors" autocomplete="off">
+              </label>
+            </div>
+            <div class="ig-row">
+              <label class="ig-label">Sampler
+                <input type="text" id="ig-sampler" placeholder="Euler" autocomplete="off">
+              </label>
+              <label class="ig-label">Scheduler
+                <input type="text" id="ig-scheduler" placeholder="Beta" autocomplete="off">
+              </label>
+              <label class="ig-label">Steps
+                <input type="number" id="ig-steps" min="1" max="150" value="20">
+              </label>
+              <label class="ig-label">Width
+                <input type="number" id="ig-width" min="64" max="2048" step="64" value="512">
+              </label>
+              <label class="ig-label">Height
+                <input type="number" id="ig-height" min="64" max="2048" step="64" value="512">
+              </label>
+              <label class="ig-label">CFG Scale
+                <input type="number" id="ig-cfg_scale" min="0" max="30" step="0.5" value="1">
+              </label>
+              <label class="ig-label">Distilled CFG
+                <input type="number" id="ig-distilled_cfg" min="0" max="30" step="0.5" value="3">
+              </label>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+              <button class="btn-ghost" onclick="saveImageGenSettings()">Save Image Gen</button>
+              <span id="ig-save-msg" class="form-error"></span>
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:12px;margin:24px 0 32px">
             <button class="btn-primary" onclick="saveModelConfig()">Save Model Config</button>
             <span id="model-save-msg" class="form-error"></span>
           </div>

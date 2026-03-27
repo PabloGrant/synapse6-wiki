@@ -391,26 +391,63 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
     if not llm_models:
         llm_models = [{"api_endpoint": LLM_BASE, "api_token": "", "model_name": LLM_MODEL}]
 
+    image_gen_cfg = settings.get("image_gen", {})
+    tools = [GENERATE_IMAGE_TOOL] if image_gen_cfg.get("enabled") else []
+
     last_error = None
     async with httpx.AsyncClient(timeout=120) as client:
         for model in llm_models:
             base = _api_base(model["api_endpoint"])
             headers = _build_headers(model["api_endpoint"], model.get("api_token", ""))
+            req = {
+                "model": model["model_name"],
+                "messages": messages,
+                "max_tokens": 1024,
+                "temperature": 0.4,
+                "stream": False,
+            }
+            if tools:
+                req["tools"] = tools
+                req["tool_choice"] = "auto"
             try:
-                resp = await client.post(
-                    f"{base}/v1/chat/completions",
-                    headers=headers,
-                    json={
-                        "model": model["model_name"],
-                        "messages": messages,
-                        "max_tokens": 1024,
-                        "temperature": 0.4,
-                        "stream": False,
-                    },
-                )
+                resp = await client.post(f"{base}/v1/chat/completions", headers=headers, json=req)
                 resp.raise_for_status()
                 data = resp.json()
-                return {"reply": _extract_content(data), "model_used": model.get("label", model["model_name"])}
+                choice = data["choices"][0]
+
+                image_url = None
+                if choice.get("finish_reason") == "tool_calls" and choice["message"].get("tool_calls"):
+                    tool_msgs = []
+                    for tc in choice["message"]["tool_calls"]:
+                        fn = tc.get("function", {})
+                        if fn.get("name") == "generate_image":
+                            try:
+                                args = json.loads(fn.get("arguments", "{}"))
+                                result = await _generate_image(args.get("prompt", ""), image_gen_cfg)
+                                image_url = result.get("url")
+                                tc_content = "Image generated successfully." if image_url else f"Image generation failed: {result.get('error', 'unknown')}"
+                            except Exception as te:
+                                tc_content = f"Image generation error: {te}"
+                        else:
+                            tc_content = "Unknown tool."
+                        tool_msgs.append({
+                            "role": "tool",
+                            "tool_call_id": tc.get("id", ""),
+                            "content": tc_content,
+                        })
+                    # Second call: LLM responds with text after seeing the tool result
+                    followup = messages + [choice["message"]] + tool_msgs
+                    resp2 = await client.post(
+                        f"{base}/v1/chat/completions",
+                        headers=headers,
+                        json={"model": model["model_name"], "messages": followup, "max_tokens": 512, "temperature": 0.4, "stream": False},
+                    )
+                    resp2.raise_for_status()
+                    reply = _extract_content(resp2.json())
+                else:
+                    reply = _extract_content(data)
+
+                return {"reply": reply, "image_url": image_url, "model_used": model.get("label", model["model_name"])}
             except Exception as e:
                 last_error = str(e)
                 continue
@@ -625,10 +662,39 @@ def save_model_configs(body: ModelsBody):
     return {"ok": True}
 
 
+@router.get("/image-gen", dependencies=[Depends(require_role("superadmin"))])
+def get_image_gen_config():
+    return _load_settings().get("image_gen", {})
+
+
+@router.put("/image-gen", dependencies=[Depends(require_role("superadmin"))])
+def save_image_gen_config(body: ImageGenConfig):
+    settings = _load_settings()
+    settings["image_gen"] = body.dict()
+    _save_settings(settings)
+    return {"ok": True}
+
+
 class FetchModelsBody(BaseModel):
     provider: str
     api_endpoint: str = ""
     api_token: str = ""
+
+class ImageGenConfig(BaseModel):
+    enabled: bool = True
+    api_endpoint: str = "http://100.74.90.66:6501"
+    checkpoint: str = ""
+    vae: str = ""
+    clip_l: str = ""
+    t5xxl: str = ""
+    sampler: str = "Euler"
+    scheduler: str = "Beta"
+    steps: int = 20
+    width: int = 512
+    height: int = 512
+    cfg_scale: float = 1.0
+    distilled_cfg_scale: float = 3.0
+
 
 class TestModelBody(BaseModel):
     api_endpoint: str
@@ -658,6 +724,82 @@ def _build_headers(api_endpoint: str, api_token: str) -> dict:
         headers["HTTP-Referer"] = "https://intra.synapse6.net"
         headers["X-Title"] = "Synapse6 Wiki"
     return headers
+
+
+GENERATE_IMAGE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "generate_image",
+        "description": (
+            "Generate an image from a detailed text prompt. "
+            "Use when the user asks you to create, draw, generate, illustrate, or visualize something."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "description": "A detailed image generation prompt describing exactly what to create",
+                }
+            },
+            "required": ["prompt"],
+        },
+    },
+}
+
+
+async def _generate_image(prompt: str, cfg: dict) -> dict:
+    """Call ForgeNeo txt2img, upload result to MinIO, return {url} or {error}."""
+    import base64, io as _io
+    endpoint = cfg.get("api_endpoint", "http://100.74.90.66:6501").rstrip("/")
+    payload = {
+        "prompt": prompt,
+        "negative_prompt": "",
+        "sampler_name": cfg.get("sampler", "Euler"),
+        "scheduler": cfg.get("scheduler", "Beta"),
+        "steps": int(cfg.get("steps", 20)),
+        "width": int(cfg.get("width", 512)),
+        "height": int(cfg.get("height", 512)),
+        "cfg_scale": float(cfg.get("cfg_scale", 1.0)),
+        "distilled_cfg_scale": float(cfg.get("distilled_cfg_scale", 3.0)),
+        "override_settings": {
+            "sd_model_checkpoint": cfg.get("checkpoint", ""),
+            "sd_vae": cfg.get("vae", ""),
+        },
+        "save_images": False,
+        "send_images": True,
+    }
+    additional = [m for m in [cfg.get("clip_l", ""), cfg.get("t5xxl", "")] if m]
+    if additional:
+        payload["override_settings"]["forge_additional_modules"] = additional
+
+    try:
+        async with httpx.AsyncClient(timeout=180) as img_client:
+            resp = await img_client.post(f"{endpoint}/sdapi/v1/txt2img", json=payload)
+            resp.raise_for_status()
+        img_b64 = resp.json()["images"][0]
+        img_bytes = base64.b64decode(img_b64)
+    except Exception as e:
+        return {"error": str(e)}
+
+    # Try MinIO upload
+    try:
+        from minio import Minio
+        _ep  = os.environ.get("MINIO_ENDPOINT", "")
+        _ak  = os.environ.get("MINIO_ACCESS_KEY", "")
+        _sk  = os.environ.get("MINIO_SECRET_KEY", "")
+        _bkt = os.environ.get("MINIO_BUCKET", "synapse6-wiki")
+        _pub = os.environ.get("MINIO_PUBLIC_URL", "")
+        if _ep and _ak:
+            mc = Minio(_ep, access_key=_ak, secret_key=_sk, secure=True)
+            obj = f"hypatia-images/{uuid.uuid4().hex}.png"
+            mc.put_object(_bkt, obj, _io.BytesIO(img_bytes), length=len(img_bytes), content_type="image/png")
+            return {"url": f"{_pub}/{obj}"}
+    except Exception:
+        pass
+
+    # Fallback: data URI (not persisted across sessions but works immediately)
+    return {"url": f"data:image/png;base64,{img_b64}"}
 
 
 def _api_base(endpoint: str) -> str:
