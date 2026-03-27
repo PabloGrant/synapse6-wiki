@@ -764,12 +764,12 @@ async def _generate_image(prompt: str, cfg: dict) -> dict:
         "distilled_cfg_scale": float(cfg.get("distilled_cfg_scale", 3.0)),
         "override_settings": {
             "sd_model_checkpoint": cfg.get("checkpoint", ""),
-            "sd_vae": cfg.get("vae", ""),
         },
         "save_images": False,
         "send_images": True,
     }
-    additional = [m for m in [cfg.get("clip_l", ""), cfg.get("t5xxl", "")] if m]
+    # Forge Neo loads VAE + text encoders as ordered modules (ae first, then clip_l, t5xxl)
+    additional = [m for m in [cfg.get("vae", ""), cfg.get("clip_l", ""), cfg.get("t5xxl", "")] if m]
     if additional:
         payload["override_settings"]["forge_additional_modules"] = additional
 
