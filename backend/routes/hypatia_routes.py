@@ -393,6 +393,20 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
 
     image_gen_cfg = settings.get("image_gen", {})
     tools = [GENERATE_IMAGE_TOOL] if image_gen_cfg.get("enabled") else []
+
+    # Detect image intent in the latest user message so we can force the tool call
+    _IMAGE_KEYWORDS = (
+        "draw", "sketch", "illustrate", "illustration", "paint", "render",
+        "generate an image", "generate a image", "create an image", "create a image",
+        "make an image", "make a image", "generate a picture", "create a picture",
+        "visualize", "visualise", "diagram", "picture of", "image of", "photo of",
+        "show me", "can you draw", "can you create", "can you generate", "can you make",
+    )
+    _last_user = next(
+        (m.content.lower() for m in reversed(body.messages) if m.role == "user"), ""
+    )
+    _force_image = tools and any(kw in _last_user for kw in _IMAGE_KEYWORDS)
+
     if tools:
         full_system += (
             "\n\n## Image Generation — CRITICAL\n"
@@ -422,7 +436,10 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
             }
             if tools:
                 req["tools"] = tools
-                req["tool_choice"] = "auto"
+                req["tool_choice"] = (
+                    {"type": "function", "function": {"name": "generate_image"}}
+                    if _force_image else "auto"
+                )
             try:
                 resp = await client.post(f"{base}/v1/chat/completions", headers=headers, json=req)
                 resp.raise_for_status()
