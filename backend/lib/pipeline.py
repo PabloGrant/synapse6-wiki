@@ -18,6 +18,7 @@ DATA_DIR      = os.environ.get("DATA_DIR", "/data")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 QDRANT_URL    = os.environ.get("QDRANT_URL", "http://100.66.18.38:6333")
 QDRANT_COL    = "synapse6_library"
+QDRANT_MEM_COL = "synapse6_memory"   # user-scoped conversation memories (separate collection)
 
 
 # ── Settings ──────────────────────────────────────────────────────────────
@@ -184,6 +185,65 @@ async def qdrant_ensure_index(field_name: str, field_type: str = "keyword"):
             )
         except Exception:
             pass
+
+
+# ── Qdrant memory collection (user-scoped conversation memories) ───────────
+
+async def qdrant_mem_ensure_collection(vector_size: int = 1024):
+    """Create synapse6_memory collection if it doesn't exist. Idempotent."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        try:
+            r = await client.get(f"{QDRANT_URL}/collections/{QDRANT_MEM_COL}")
+            if r.status_code == 200:
+                return  # already exists
+        except Exception:
+            return
+        try:
+            await client.put(
+                f"{QDRANT_URL}/collections/{QDRANT_MEM_COL}",
+                json={"vectors": {"size": vector_size, "distance": "Cosine"}},
+            )
+            # Index username for fast per-user filtering
+            await client.put(
+                f"{QDRANT_URL}/collections/{QDRANT_MEM_COL}/index",
+                json={"field_name": "username", "field_schema": "keyword"},
+            )
+        except Exception:
+            pass
+
+
+async def qdrant_mem_upsert(points: list[dict]):
+    """Upsert into the memory collection. Each point MUST have username in payload."""
+    async with httpx.AsyncClient(timeout=60) as client:
+        resp = await client.put(
+            f"{QDRANT_URL}/collections/{QDRANT_MEM_COL}/points",
+            json={"points": points},
+        )
+        resp.raise_for_status()
+
+
+async def qdrant_mem_search(
+    vector: list[float],
+    username: str,
+    limit: int = 5,
+    score_threshold: float = 0.20,
+) -> list[dict]:
+    """Search memory collection, ALWAYS filtered to the requesting user only."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{QDRANT_URL}/collections/{QDRANT_MEM_COL}/points/search",
+            json={
+                "vector": vector,
+                "limit": limit,
+                "with_payload": True,
+                "score_threshold": score_threshold,
+                "filter": {
+                    "must": [{"key": "username", "match": {"value": username}}]
+                },
+            },
+        )
+        resp.raise_for_status()
+        return resp.json().get("result", [])
 
 
 # ── Text chunking ─────────────────────────────────────────────────────────

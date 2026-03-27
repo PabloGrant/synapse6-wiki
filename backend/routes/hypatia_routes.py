@@ -169,15 +169,15 @@ def _kb_context_fallback() -> str:
     return "".join(chunks)
 
 
-async def _retrieve_context(messages: list[dict], settings: dict) -> str:
+async def _retrieve_context(messages: list[dict], settings: dict, username: str = "") -> str:
     """
     Semantic retrieval: embed the last user message → Qdrant top-N →
-    inject the most relevant wiki page chunks and library chunks as context.
-    For wiki pages, loads the FULL page from disk (not just the matching chunk)
-    so Hypatia sees complete content, not just the sentence that matched.
+    inject the most relevant wiki page chunks, library chunks, and
+    (user-scoped) past conversation memories as context.
+    For wiki pages, loads the FULL page from disk.
     Falls back to file-based reading if Qdrant is unavailable or empty.
     """
-    from lib.pipeline import embed, qdrant_search
+    from lib.pipeline import embed, qdrant_search, qdrant_mem_search
 
     # Use the last user message as the search query
     last_user = next(
@@ -201,8 +201,8 @@ async def _retrieve_context(messages: list[dict], settings: dict) -> str:
         return _kb_context_fallback()
 
     # Collect unique slugs (wiki) and file_ids (library) from results
-    seen_wiki: dict[str, dict] = {}   # slug → best result (for metadata)
-    seen_lib: dict[str, dict] = {}    # file_id → best result (for content)
+    seen_wiki: dict[str, dict] = {}
+    seen_lib: dict[str, dict] = {}
     for r in results:
         rtype = r["payload"].get("type", "")
         if rtype == "wiki_page":
@@ -217,7 +217,22 @@ async def _retrieve_context(messages: list[dict], settings: dict) -> str:
     parts = []
     total_chars = 0
 
-    # Wiki pages: load FULL page from disk so Hypatia has all content, not just matching chunk
+    # Past conversation memories — user-scoped, never cross-user
+    if username:
+        try:
+            mem_results = await qdrant_mem_search(vectors[0], username=username, limit=4, score_threshold=0.25)
+            for r in mem_results:
+                date = r["payload"].get("date", "")[:10]
+                summary = r["payload"].get("summary", "")
+                if summary:
+                    section = f"### Past conversation ({date})\n{summary}"
+                    if total_chars + len(section) < LLM_MAX_CONTEXT_CHARS:
+                        parts.append(section)
+                        total_chars += len(section)
+        except Exception:
+            pass
+
+    # Wiki pages: load FULL page from disk
     for slug, r in seen_wiki.items():
         title = r["payload"].get("page_title") or slug
         page_dir = os.path.join(CONTENT_DIR, slug)
@@ -233,7 +248,6 @@ async def _retrieve_context(messages: list[dict], settings: dict) -> str:
 
         section = f"### Wiki: {title}\n\n{full_content}"
         if total_chars + len(section) > LLM_MAX_CONTEXT_CHARS:
-            # Truncate to fit
             remaining = LLM_MAX_CONTEXT_CHARS - total_chars
             if remaining > 500:
                 section = section[:remaining] + "\n\n[…truncated]"
@@ -242,7 +256,7 @@ async def _retrieve_context(messages: list[dict], settings: dict) -> str:
         parts.append(section)
         total_chars += len(section)
 
-    # Library files: use the chunk content (already chunked for embedding)
+    # Library files
     for fid, r in seen_lib.items():
         fname = r["payload"].get("original_filename", fid)
         content = r["payload"].get("content", "")
@@ -295,20 +309,44 @@ def _load_user_profile(username: str) -> str:
     return ""
 
 
-def _hypatia_notes_path(username: str) -> str:
-    return os.path.join(DATA_DIR, "hypatia", "memory", "users", f"{username}_hypatia.md")
+_NOTE_TOPICS = ["working_on", "preferences", "context"]
+
+def _hypatia_notes_path(username: str, topic: str = "working_on") -> str:
+    return os.path.join(DATA_DIR, "hypatia", "memory", "users", f"{username}_hypatia_{topic}.md")
 
 
 def _load_hypatia_notes(username: str) -> str:
-    """Load Hypatia's own observations about a user. Returns empty string if none."""
-    p = _hypatia_notes_path(username)
-    if os.path.exists(p):
-        try:
-            with open(p) as f:
-                return f.read().strip()
-        except Exception:
-            pass
-    return ""
+    """Load all three topic note files and return them as labelled sections."""
+    labels = {
+        "working_on": "Currently Working On",
+        "preferences": "Preferences & Style",
+        "context": "Ongoing Context",
+    }
+    parts = []
+    for topic in _NOTE_TOPICS:
+        p = _hypatia_notes_path(username, topic)
+        if os.path.exists(p):
+            try:
+                content = open(p).read().strip()
+                if content:
+                    parts.append(f"### {labels[topic]}\n{content}")
+            except Exception:
+                pass
+    return "\n\n".join(parts)
+
+
+def _save_hypatia_notes(username: str, notes: dict):
+    """Write topic note files. notes = {topic: text}. Empty string clears the file."""
+    mem_dir = os.path.dirname(_hypatia_notes_path(username, "working_on"))
+    os.makedirs(mem_dir, exist_ok=True)
+    for topic in _NOTE_TOPICS:
+        text = notes.get(topic, "").strip()
+        p = _hypatia_notes_path(username, topic)
+        if text:
+            with open(p, "w") as f:
+                f.write(text)
+        elif os.path.exists(p):
+            os.remove(p)
 
 
 def _get_recent_user_activity(username: str, limit: int = 10) -> list:
@@ -381,7 +419,7 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
     system_prompt = _assemble_system(settings)
 
     messages_raw = [{"role": m.role, "content": m.content} for m in body.messages]
-    kb_context = await _retrieve_context(messages_raw, settings)
+    kb_context = await _retrieve_context(messages_raw, settings, username=user["sub"])
     user_profile = _load_user_profile(user["sub"])
     hypatia_notes = _load_hypatia_notes(user["sub"])
     team_profiles = _load_team_profiles(user["sub"])
@@ -967,13 +1005,15 @@ class ReflectBody(BaseModel):
 _REFLECT_PROMPT = """\
 You are Hypatia, the knowledge partner for Synapse6. A conversation with {display_name} has just ended.
 
-Your job is to write or update a compact memory note about this person — from your perspective, not theirs.
-This note will be silently injected into future conversations so you can pick up where you left off.
+Your job is to produce two things:
 
---- WHAT YOU ALREADY KNOW (from their self-profile) ---
+1. UPDATED TOPIC NOTES about this person (from your perspective, injected into future conversations).
+2. A CONVERSATION SUMMARY for the memory index (one searchable paragraph).
+
+--- WHAT YOU ALREADY KNOW (their self-profile) ---
 {user_profile}
 
---- YOUR PREVIOUS NOTES ABOUT THEM (update/replace as needed) ---
+--- YOUR EXISTING TOPIC NOTES (update each section; keep what's still true, replace what changed) ---
 {existing_notes}
 
 --- THEIR RECENT WIKI ACTIVITY ---
@@ -982,20 +1022,47 @@ This note will be silently injected into future conversations so you can pick up
 --- THE CONVERSATION THAT JUST ENDED ---
 {conversation}
 
-Write updated memory notes. Rules:
-- Maximum 400 words. Be ruthlessly concise.
-- Write in third person using their display name ("{display_name}").
-- Focus on: what they're currently working on, how they think, what they struggle with, people they mention, projects they're driving, preferences you observed in how they interact with you.
-- Do NOT repeat information already in their self-profile unless you observed something new or contradictory.
-- Do NOT invent details not present in the conversation or activity.
-- If there is nothing noteworthy to add or update, write only: NO_UPDATE
-- Start directly with the notes — no preamble, no "Here are my notes:", no titles."""
+Respond in this EXACT format (keep all four markers, even if a section has no update):
+
+WORKING_ON:
+<max 120 words — active projects, tasks they're driving right now, immediate goals>
+
+PREFERENCES:
+<max 80 words — communication style, how they like to interact with you, recurring patterns>
+
+CONTEXT:
+<max 120 words — ongoing threads, people mentioned, decisions in flight, things to remember across sessions>
+
+SUMMARY:
+<1-2 sentences — neutral past-tense summary of what this conversation was about, suitable for future semantic search>
+
+Rules:
+- Write in third person using "{display_name}".
+- Do NOT repeat what's in their self-profile unless something changed.
+- Do NOT invent details not in the conversation or activity.
+- If a section truly has nothing new, write: (no change)
+- No preamble, no commentary outside the four sections."""
+
+
+def _parse_reflect_response(text: str) -> tuple[dict, str]:
+    """Parse structured reflect response into (topic_notes_dict, summary_str)."""
+    import re
+    topics = {}
+    for key in ["WORKING_ON", "PREFERENCES", "CONTEXT"]:
+        m = re.search(rf"{key}:\n(.*?)(?=\n[A-Z_]+:|$)", text, re.DOTALL)
+        val = m.group(1).strip() if m else ""
+        if val and val != "(no change)":
+            topics[key.lower()] = val
+        else:
+            topics[key.lower()] = ""
+    m = re.search(r"SUMMARY:\n(.*?)(?=\n[A-Z_]+:|$)", text, re.DOTALL)
+    summary = m.group(1).strip() if m else ""
+    return topics, summary
 
 
 @router.post("/reflect")
 async def reflect(body: ReflectBody, user=Depends(get_current_user)):
-    """End-of-session: compact the conversation + recent activity into Hypatia's user notes."""
-    # Minimum substance check — skip greetings-only sessions
+    """End-of-session: update topic notes + write conversation summary to memory Qdrant."""
     user_turns = [m for m in body.messages if m.role == "user"]
     if len(user_turns) < 2:
         return {"ok": True, "skipped": True}
@@ -1008,7 +1075,6 @@ async def reflect(body: ReflectBody, user=Depends(get_current_user)):
     existing_notes = _load_hypatia_notes(username)
     recent_pages = _get_recent_user_activity(username, limit=8)
 
-    # Format recent activity
     if recent_pages:
         activity_lines = []
         for p in recent_pages:
@@ -1020,7 +1086,6 @@ async def reflect(body: ReflectBody, user=Depends(get_current_user)):
     else:
         recent_activity = "No recent wiki pages found."
 
-    # Format conversation (truncate to ~6000 chars to stay within context)
     conv_lines = []
     for m in body.messages:
         prefix = "You" if m.role == "assistant" else display_name
@@ -1035,7 +1100,6 @@ async def reflect(body: ReflectBody, user=Depends(get_current_user)):
         conversation=conversation,
     )
 
-    # Use first enabled LLM
     llm_models = [m for m in settings.get("llm_models", []) if m.get("enabled") and m.get("type", "llm") == "llm"]
     llm_models.sort(key=lambda m: m.get("order", 0))
     if not llm_models:
@@ -1050,21 +1114,52 @@ async def reflect(body: ReflectBody, user=Depends(get_current_user)):
                 json={
                     "model": lm.get("model_name", LLM_MODEL),
                     "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": 600,
+                    "max_tokens": 700,
                     "temperature": 0.3,
                 },
             )
         resp.raise_for_status()
         result = _extract_content(resp.json())
 
-        if result and result != "NO_UPDATE":
-            mem_dir = os.path.dirname(_hypatia_notes_path(username))
-            os.makedirs(mem_dir, exist_ok=True)
-            with open(_hypatia_notes_path(username), "w") as f:
-                f.write(result)
-        return {"ok": True, "updated": result != "NO_UPDATE"}
+        if not result:
+            return {"ok": True, "skipped": True}
+
+        topic_notes, summary = _parse_reflect_response(result)
+
+        # Write topic note files (preserves existing content for unchanged sections)
+        existing_by_topic = {}
+        for topic in _NOTE_TOPICS:
+            p = _hypatia_notes_path(username, topic)
+            if os.path.exists(p):
+                try:
+                    existing_by_topic[topic] = open(p).read().strip()
+                except Exception:
+                    existing_by_topic[topic] = ""
+        merged = {t: topic_notes.get(t) or existing_by_topic.get(t, "") for t in _NOTE_TOPICS}
+        _save_hypatia_notes(username, merged)
+
+        # Write conversation summary to user-scoped Qdrant memory collection
+        if summary:
+            try:
+                from lib.pipeline import embed, qdrant_mem_upsert, qdrant_mem_ensure_collection
+                from datetime import datetime, timezone
+                await qdrant_mem_ensure_collection()
+                vectors = await embed([summary[:2000]], settings)
+                await qdrant_mem_upsert([{
+                    "id": str(uuid.uuid4()),
+                    "vector": vectors[0],
+                    "payload": {
+                        "type": "conversation_memory",
+                        "username": username,
+                        "date": datetime.now(timezone.utc).isoformat(),
+                        "summary": summary,
+                    },
+                }])
+            except Exception:
+                pass  # Non-fatal
+
+        return {"ok": True, "updated": True}
     except Exception as e:
-        # Non-fatal — log and return ok so the frontend can still clear the chat
         return {"ok": True, "skipped": True, "error": str(e)}
 
 
@@ -1074,30 +1169,22 @@ class HypatiaNotesBody(BaseModel):
 
 @router.get("/me/hypatia-notes")
 async def get_hypatia_notes(user=Depends(get_current_user)):
-    """Returns Hypatia's notes about the current user (for display in AI Prefs tab)."""
-    notes = _load_hypatia_notes(user["sub"])
-    return {"notes": notes}
+    """Returns Hypatia's notes about the current user (all topics combined)."""
+    return {"notes": _load_hypatia_notes(user["sub"])}
 
 
 @router.put("/me/hypatia-notes")
 async def save_hypatia_notes(body: HypatiaNotesBody, user=Depends(get_current_user)):
-    """User can edit Hypatia's notes about themselves."""
-    p = _hypatia_notes_path(user["sub"])
-    if body.notes.strip():
-        os.makedirs(os.path.dirname(p), exist_ok=True)
-        with open(p, "w") as f:
-            f.write(body.notes.strip())
-    elif os.path.exists(p):
-        os.remove(p)
+    """User can edit Hypatia's notes — saves entire text to context topic file."""
+    # Store manual edits in the 'context' topic; preserves auto-updated others
+    _save_hypatia_notes(user["sub"], {"context": body.notes.strip()})
     return {"ok": True}
 
 
 @router.delete("/me/hypatia-notes")
 async def delete_hypatia_notes(user=Depends(get_current_user)):
-    """Clears Hypatia's notes about the current user."""
-    p = _hypatia_notes_path(user["sub"])
-    if os.path.exists(p):
-        os.remove(p)
+    """Clears all Hypatia topic notes for the current user."""
+    _save_hypatia_notes(user["sub"], {t: "" for t in _NOTE_TOPICS})
     return {"ok": True}
 
 
@@ -1110,19 +1197,11 @@ async def admin_get_user_notes(username: str):
 
 @router.put("/admin/users/{username}/hypatia-notes", dependencies=[Depends(require_role("superadmin"))])
 async def admin_save_user_notes(username: str, body: HypatiaNotesBody):
-    p = _hypatia_notes_path(username)
-    if body.notes.strip():
-        os.makedirs(os.path.dirname(p), exist_ok=True)
-        with open(p, "w") as f:
-            f.write(body.notes.strip())
-    elif os.path.exists(p):
-        os.remove(p)
+    _save_hypatia_notes(username, {"context": body.notes.strip()})
     return {"ok": True}
 
 
 @router.delete("/admin/users/{username}/hypatia-notes", dependencies=[Depends(require_role("superadmin"))])
 async def admin_delete_user_notes(username: str):
-    p = _hypatia_notes_path(username)
-    if os.path.exists(p):
-        os.remove(p)
+    _save_hypatia_notes(username, {t: "" for t in _NOTE_TOPICS})
     return {"ok": True}
