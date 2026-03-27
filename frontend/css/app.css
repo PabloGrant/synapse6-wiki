@@ -370,11 +370,11 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .comment-date { font-size: 11px; color: var(--subtext); }
 .comment-del { margin-left: auto; font-size: 11px; color: var(--subtext); cursor: pointer; }
 .comment-del:hover { color: var(--danger); }
-.comment-text { font-size: 13.5px; color: var(--subtext); line-height: 1.6; white-space: pre-wrap; }
+.comment-text { font-size: 16px; color: var(--subtext); line-height: 1.7; white-space: pre-wrap; }
 #comment-form { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
 #comment-input {
   background: var(--card); border: 1px solid var(--border); border-radius: 6px;
-  color: var(--text); font-size: 13.5px; padding: 10px 12px; resize: vertical; outline: none;
+  color: var(--text); font-size: 16px; padding: 10px 12px; resize: vertical; outline: none;
   font-family: inherit; transition: border-color 0.2s;
 }
 #comment-input:focus { border-color: var(--green); }
@@ -603,8 +603,8 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 }
 .chat-ts { font-size: 10px; color: #666; }
 .chat-bubble {
-  width: 100%; padding: 10px 14px; border-radius: 8px; line-height: 1.7;
-  font-size: 15px; box-sizing: border-box;
+  width: 100%; padding: 10px 14px; border-radius: 8px; line-height: 1.75;
+  font-size: 16px; box-sizing: border-box;
   overflow-wrap: break-word; word-break: break-word; min-width: 0;
 }
 .chat-msg.user .chat-bubble { background: rgba(124,184,153,0.15); border: 1px solid rgba(124,184,153,0.25); color: #e6edf3; }
@@ -617,10 +617,13 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 .chat-bubble code { font-size: 12px; background: rgba(255,255,255,0.07);
   padding: 1px 5px; border-radius: 4px; overflow-wrap: break-word; word-break: break-word; }
 .chat-bubble pre code { background: none; padding: 0; }
-.chat-bubble h1,.chat-bubble h2,.chat-bubble h3,.chat-bubble h4 { margin: 10px 0 6px; font-size: 14px; font-weight: 700; }
+.chat-bubble h1 { margin: 12px 0 6px; font-size: 22px; font-weight: 700; }
+.chat-bubble h2 { margin: 12px 0 6px; font-size: 19px; font-weight: 700; }
+.chat-bubble h3 { margin: 10px 0 6px; font-size: 17px; font-weight: 700; }
+.chat-bubble h4 { margin: 8px 0 4px; font-size: 16px; font-weight: 700; }
 .chat-bubble ul,.chat-bubble ol { padding-left: 18px; margin-bottom: 8px; }
 .chat-bubble li { margin-bottom: 3px; }
-.chat-thinking { color: #8b949e; font-style: italic; font-size: 14px; }
+.chat-thinking { color: #8b949e; font-style: italic; font-size: 16px; }
 #chat-form { display: flex; gap: 8px; align-items: flex-end; }
 #chat-input {
   flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px;
