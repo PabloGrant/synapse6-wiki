@@ -774,7 +774,7 @@ async def _generate_image(prompt: str, cfg: dict) -> dict:
         payload["override_settings"]["forge_additional_modules"] = additional
 
     try:
-        async with httpx.AsyncClient(timeout=180) as img_client:
+        async with httpx.AsyncClient(timeout=300) as img_client:  # 5 min: covers cold model load
             resp = await img_client.post(f"{endpoint}/sdapi/v1/txt2img", json=payload)
             resp.raise_for_status()
         img_b64 = resp.json()["images"][0]

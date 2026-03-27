@@ -675,6 +675,33 @@ async function sendHiddenGreeting() {
   }
 }
 
+const _IMG_GEN_MSGS = [
+  "Hmm, let me visualize that for you…",
+  "Preparing the canvas…",
+  "The model is loading — first generation takes a little longer…",
+  "Warming things up on Wednesday…",
+  "Flux is weaving your image together…",
+  "Diffusion in progress…",
+  "Almost there — just a few more sampling steps…",
+  "Still working… once it's warm the next one will be nearly instant.",
+  "Nearly done…",
+  "Any moment now…",
+];
+let _imgGenInterval = null;
+
+function _startImageGenPhrases(thinkingEl) {
+  let idx = 0;
+  _imgGenInterval = setInterval(() => {
+    idx = Math.min(idx + 1, _IMG_GEN_MSGS.length - 1);
+    const span = thinkingEl.querySelector('.chat-thinking');
+    if (span) span.textContent = _IMG_GEN_MSGS[idx];
+  }, 5000);
+}
+
+function _stopImageGenPhrases() {
+  if (_imgGenInterval) { clearInterval(_imgGenInterval); _imgGenInterval = null; }
+}
+
 async function sendChat(e) {
   e.preventDefault();
   const input = document.getElementById('chat-input');
@@ -688,11 +715,15 @@ async function sendChat(e) {
   setHypatiaState('thinking');
   const thinking = appendChatMsg('assistant', '…', 'thinking');
   document.getElementById('chat-send').disabled = true;
+  // After 4s with no response, start cycling loading phrases (covers image gen waits)
+  const _phraseDelay = setTimeout(() => _startImageGenPhrases(thinking), 4000);
   try {
     const r = await api('POST', '/api/hypatia/chat', {
       messages: chatHistory,
       font_expression_enabled: isFontExpressionEnabled(),
     });
+    clearTimeout(_phraseDelay);
+    _stopImageGenPhrases();
     await fadeOutMsg(thinking);
     const { font, text: clean } = _parseFontPrefix(r.reply);
     if (font) _currentHypatiaFont = font;
@@ -704,6 +735,8 @@ async function sendChat(e) {
     _saveHypatiaSession();
     setHypatiaState('idle');
   } catch (ex) {
+    clearTimeout(_phraseDelay);
+    _stopImageGenPhrases();
     await fadeOutMsg(thinking);
     appendChatMsg('assistant', '⚠ Could not reach Hypatia: ' + ex.message);
     setHypatiaState('idle');
