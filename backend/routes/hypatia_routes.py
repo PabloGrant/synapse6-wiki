@@ -395,12 +395,17 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
     tools = [GENERATE_IMAGE_TOOL] if image_gen_cfg.get("enabled") else []
     if tools:
         full_system += (
-            "\n\n## Image Generation\nYou have access to a Flux 1 Dev image generation tool. "
-            "When you use it, write the prompt yourself — never pass the user's words verbatim. "
-            "Flux 1 Dev best practices: use plain, descriptive natural language (no keyword lists); "
-            "describe subject, style, lighting, composition, and mood in full sentences or dense phrases; "
-            "Flux responds well to artistic style references (e.g. 'in the style of a 1970s science fiction paperback cover'); "
-            "avoid negative prompts — Flux ignores them; keep prompts under ~200 words for best results."
+            "\n\n## Image Generation — CRITICAL\n"
+            "You have a FULLY FUNCTIONAL image generation tool connected to a local Flux 1 Dev model. "
+            "When any user asks you to create, draw, generate, illustrate, or visualize an image, "
+            "you MUST call the generate_image tool immediately. "
+            "Do NOT write prompts for the user to copy elsewhere. Do NOT say you cannot generate images. "
+            "Do NOT suggest third-party tools like DALL-E or Midjourney. You can generate images right now.\n\n"
+            "When you call the tool, write the prompt yourself using Flux 1 Dev best practices: "
+            "use plain descriptive natural language (not keyword lists); describe subject, style, lighting, "
+            "composition, and mood in full sentences or dense phrases; style references work well "
+            "(e.g. 'in the style of a 1970s science fiction paperback cover'); "
+            "avoid negative prompts — Flux ignores them; keep prompts under ~200 words."
         )
 
     last_error = None
