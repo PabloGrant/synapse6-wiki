@@ -138,14 +138,14 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 }
 
 .s6-icon-img {
-  width: 34px; height: 34px;
+  width: 42px; height: 42px;
   border-radius: 8px;
   flex-shrink: 0;
   display: block;
 }
 
-.sidebar-title { font-size: 14px; font-weight: 700; }
-.sidebar-sub { font-size: 10px; color: var(--subtext); text-transform: uppercase; letter-spacing: 0.06em; }
+.sidebar-title { font-size: 20px; font-weight: 800; letter-spacing: 0.06em; line-height: 1.1; }
+.sidebar-sub { font-size: 10px; color: var(--subtext); text-transform: uppercase; letter-spacing: 0.12em; margin-top: 3px; }
 
 #search-wrap { padding: 10px 12px; border-bottom: 1px solid var(--border); position: relative; }
 #search {
