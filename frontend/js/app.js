@@ -1105,8 +1105,14 @@ async function sendChat(e) {
   setHypatiaState('thinking');
   const thinking = appendChatMsg('assistant', '…', 'thinking');
   document.getElementById('chat-send').disabled = true;
-  // After 4s with no response, start cycling loading phrases (covers image gen waits)
-  const _phraseDelay = setTimeout(() => _startImageGenPhrases(thinking), 4000);
+  // Only cycle image-gen phrases if the message looks like an image request
+  const _IMAGE_KW = ['draw','sketch','illustrate','illustration','paint','render',
+    'generate an image','generate a image','create an image','create a image',
+    'make an image','make a image','picture of','photo of','image of',
+    'show me','can you draw','can you create','can you generate','can you make'];
+  const _lowerText = text.toLowerCase();
+  const _looksLikeImage = _IMAGE_KW.some(kw => _lowerText.includes(kw));
+  const _phraseDelay = _looksLikeImage ? setTimeout(() => _startImageGenPhrases(thinking), 4000) : null;
   try {
     const r = await api('POST', '/api/hypatia/chat', {
       messages: chatHistory,
