@@ -1205,3 +1205,57 @@ async def admin_save_user_notes(username: str, body: HypatiaNotesBody):
 async def admin_delete_user_notes(username: str):
     _save_hypatia_notes(username, {t: "" for t in _NOTE_TOPICS})
     return {"ok": True}
+
+
+# ── Memory dump endpoints ──────────────────────────────────────────────────
+
+@router.get("/me/memories")
+async def list_my_memories(user=Depends(get_current_user)):
+    """List all conversation memory entries for the current user."""
+    try:
+        from lib.pipeline import qdrant_mem_list
+        points = await qdrant_mem_list(user["sub"])
+        return {"memories": [
+            {"id": p["id"], "date": p["payload"].get("date", "")[:10], "summary": p["payload"].get("summary", "")}
+            for p in points
+        ]}
+    except Exception:
+        return {"memories": []}
+
+
+@router.delete("/me/memories/{point_id}")
+async def delete_my_memory(point_id: str, user=Depends(get_current_user)):
+    """Delete a single conversation memory. Ownership verified server-side."""
+    from lib.pipeline import qdrant_mem_delete
+    try:
+        await qdrant_mem_delete(point_id, user["sub"])
+        return {"ok": True}
+    except ValueError:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Not found or access denied")
+
+
+@router.get("/admin/users/{username}/memories", dependencies=[Depends(require_role("superadmin"))])
+async def admin_list_memories(username: str):
+    """Superadmin: list all conversation memories for any user."""
+    try:
+        from lib.pipeline import qdrant_mem_list
+        points = await qdrant_mem_list(username)
+        return {"memories": [
+            {"id": p["id"], "date": p["payload"].get("date", "")[:10], "summary": p["payload"].get("summary", "")}
+            for p in points
+        ]}
+    except Exception:
+        return {"memories": []}
+
+
+@router.delete("/admin/users/{username}/memories/{point_id}", dependencies=[Depends(require_role("superadmin"))])
+async def admin_delete_memory(username: str, point_id: str):
+    """Superadmin: delete a specific memory entry for any user."""
+    from lib.pipeline import qdrant_mem_delete
+    try:
+        await qdrant_mem_delete(point_id, username)
+        return {"ok": True}
+    except ValueError:
+        from fastapi import HTTPException
+        raise HTTPException(404, "Not found or access denied")

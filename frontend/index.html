@@ -445,19 +445,32 @@
             <span id="ai-prefs-msg" class="form-hint"></span>
           </div>
 
-          <!-- Hypatia's Notes (editable) -->
+          <!-- Hypatia Memory Dump -->
           <div class="ai-pref-section" style="margin-top:36px">
-            <div class="admin-section-title">Hypatia's Notes About You</div>
-            <p style="font-size:12px;color:var(--subtext);margin-bottom:12px">
-              Written by Hypatia at the end of each conversation. Edit or clear if she's remembered something incorrectly.
+            <div class="admin-section-title">What Hypatia Knows About You</div>
+            <p style="font-size:12px;color:var(--subtext);margin-bottom:16px">
+              Written by Hypatia at the end of each conversation. Delete anything inaccurate — she'll stop using it immediately.
             </p>
-            <textarea id="hypatia-notes-ta" class="ai-pref-textarea" rows="7"
-              placeholder="No notes yet — start a conversation with Hypatia."></textarea>
-            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
-              <button class="btn-primary" onclick="saveHypatiaNotesOwn()">Save Notes</button>
-              <button class="btn-danger-sm" onclick="clearHypatiaNotesConfirm()">Clear</button>
+
+            <div class="mem-dump-block">
+              <div class="mem-dump-label">Currently Working On</div>
+              <div id="mem-working-on" class="mem-dump-text">Loading…</div>
+            </div>
+            <div class="mem-dump-block">
+              <div class="mem-dump-label">Preferences &amp; Style</div>
+              <div id="mem-preferences" class="mem-dump-text">Loading…</div>
+            </div>
+            <div class="mem-dump-block">
+              <div class="mem-dump-label">Ongoing Context</div>
+              <div id="mem-context" class="mem-dump-text">Loading…</div>
+            </div>
+            <div style="display:flex;gap:10px;margin-bottom:28px">
+              <button class="btn-danger-sm" onclick="clearHypatiaNotesConfirm()">Clear All Topic Notes</button>
               <span id="hypatia-notes-msg" class="form-hint"></span>
             </div>
+
+            <div class="mem-dump-label" style="margin-bottom:10px">Conversation Memories</div>
+            <div id="mem-conversations" class="mem-conv-list">Loading…</div>
           </div>
         </div>
 
@@ -779,22 +792,33 @@
 
         <!-- MEMORY -->
         <div id="hytab-memory" class="hytab-content hidden">
-          <div class="admin-section-title" style="margin-top:24px">User Notes Management</div>
+          <div class="admin-section-title" style="margin-top:24px">User Memory Dump</div>
           <p style="font-size:13px;color:var(--subtext);margin-bottom:16px;max-width:680px">
-            View and edit what Hypatia has written about any user. Use this to correct inaccurate memories.
+            View exactly what Hypatia knows about any user. Delete inaccurate entries — they're removed immediately.
           </p>
           <div class="memory-section" style="margin-bottom:28px">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-              <select id="admin-notes-user-sel" class="memory-select" onchange="adminLoadUserNotes()" style="min-width:200px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+              <select id="admin-notes-user-sel" class="memory-select" onchange="adminLoadUserMemory()" style="min-width:200px">
                 <option value="">Select a user…</option>
               </select>
-              <button class="btn-danger-sm" onclick="adminClearUserNotesConfirm()">Clear</button>
-            </div>
-            <textarea id="admin-notes-ta" class="ai-pref-textarea" rows="8"
-              placeholder="Select a user to view and edit their notes." disabled></textarea>
-            <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
-              <button class="btn-primary" id="admin-notes-save-btn" onclick="adminSaveUserNotes()" disabled>Save Notes</button>
+              <button class="btn-danger-sm" id="admin-notes-clear-btn" onclick="adminClearUserNotesConfirm()" disabled>Clear All Notes</button>
               <span id="admin-notes-msg" class="form-hint"></span>
+            </div>
+            <div id="admin-mem-dump" style="display:none">
+              <div class="mem-dump-block">
+                <div class="mem-dump-label">Currently Working On</div>
+                <div id="admin-mem-working-on" class="mem-dump-text"></div>
+              </div>
+              <div class="mem-dump-block">
+                <div class="mem-dump-label">Preferences &amp; Style</div>
+                <div id="admin-mem-preferences" class="mem-dump-text"></div>
+              </div>
+              <div class="mem-dump-block">
+                <div class="mem-dump-label">Ongoing Context</div>
+                <div id="admin-mem-context" class="mem-dump-text"></div>
+              </div>
+              <div class="mem-dump-label" style="margin:20px 0 10px">Conversation Memories</div>
+              <div id="admin-mem-conversations" class="mem-conv-list"></div>
             </div>
           </div>
 

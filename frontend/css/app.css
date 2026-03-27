@@ -797,6 +797,31 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
   font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--subtext); margin-bottom: 14px;
 }
+
+/* ── MEMORY DUMP ── */
+.mem-dump-block {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; margin-bottom: 10px; max-width: 700px;
+}
+.mem-dump-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--green); margin-bottom: 6px;
+}
+.mem-dump-text {
+  font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap;
+}
+.mem-conv-list { max-width: 700px; }
+.mem-conv-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 0; border-bottom: 1px solid var(--border);
+}
+.mem-conv-item:last-child { border-bottom: none; }
+.mem-conv-date {
+  font-size: 11px; color: var(--subtext); white-space: nowrap; flex-shrink: 0;
+  padding-top: 2px; min-width: 72px;
+}
+.mem-conv-summary { font-size: 13px; color: var(--text); flex: 1; line-height: 1.5; }
+.mem-conv-del { flex-shrink: 0; }
 .memory-toggle-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
 .memory-toggle-label {
   display: flex; align-items: center; gap: 9px;

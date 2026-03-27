@@ -1245,7 +1245,7 @@ function switchProfileTab(tab) {
     document.getElementById(`ptab-btn-${t}`)?.classList.toggle('active', t === tab);
     document.getElementById(`ptab-${t}`)?.classList.toggle('hidden', t !== tab);
   });
-  if (tab === 'ai-prefs') { loadAiPrefs(); loadHypatiaNotesDisplay(); }
+  if (tab === 'ai-prefs') { loadAiPrefs(); loadMyMemoryDump(); }
 }
 
 // ── Session reflection + new conversation ─────────────────────────────────
@@ -1349,36 +1349,68 @@ async function loadHypatiaNotesDisplay() {
   }
 }
 
-async function saveHypatiaNotesOwn() {
-  const ta = document.getElementById('hypatia-notes-ta');
-  const msg = document.getElementById('hypatia-notes-msg');
-  if (!ta) return;
-  try {
-    await api('PUT', '/api/hypatia/me/hypatia-notes', { notes: ta.value });
-    msg.style.color = 'var(--green)';
-    msg.textContent = 'Saved';
-    setTimeout(() => msg.textContent = '', 2500);
-  } catch (e) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = e.message || 'Save failed';
-  }
-}
-
 async function clearHypatiaNotesConfirm() {
-  if (!confirm('Clear Hypatia\'s notes? She will start fresh after your next conversation.')) return;
+  if (!confirm('Clear all of Hypatia\'s notes about you? This cannot be undone.')) return;
+  const msg = document.getElementById('hypatia-notes-msg');
   try {
     await api('DELETE', '/api/hypatia/me/hypatia-notes');
-    document.getElementById('hypatia-notes-ta').value = '';
-    const msg = document.getElementById('hypatia-notes-msg');
-    if (msg) { msg.style.color = 'var(--subtext)'; msg.textContent = 'Cleared'; setTimeout(() => msg.textContent = '', 2000); }
+    if (msg) { msg.style.color = 'var(--green)'; msg.textContent = 'Cleared'; setTimeout(() => msg.textContent = '', 2000); }
+    loadMyMemoryDump();
   } catch {}
 }
 
-// ── Admin: Hypatia notes for any user ─────────────────────────────────────
+// ── Memory dump: self ──────────────────────────────────────────────────────
+
+function _renderMemTopics(prefix, notesText) {
+  const sections = { working_on: '', preferences: '', context: '' };
+  const re = /###\s+(Currently Working On|Preferences & Style|Ongoing Context)\n([\s\S]*?)(?=###|$)/g;
+  let m;
+  while ((m = re.exec(notesText)) !== null) {
+    if (m[1] === 'Currently Working On') sections.working_on = m[2].trim();
+    else if (m[1] === 'Preferences & Style') sections.preferences = m[2].trim();
+    else if (m[1] === 'Ongoing Context') sections.context = m[2].trim();
+  }
+  const empty = '<span style="color:var(--subtext);font-style:italic;font-size:12px">Nothing recorded yet</span>';
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.innerHTML = val ? esc(val).replace(/\n/g,'<br>') : empty; };
+  set(`${prefix}-working-on`, sections.working_on);
+  set(`${prefix}-preferences`, sections.preferences);
+  set(`${prefix}-context`, sections.context);
+}
+
+function _renderMemConversations(listEl, memories, deleteEndpoint) {
+  if (!memories.length) {
+    listEl.innerHTML = '<span style="color:var(--subtext);font-style:italic;font-size:12px">No conversation memories yet</span>';
+    return;
+  }
+  listEl.innerHTML = memories.map(m => `
+    <div class="mem-conv-item">
+      <span class="mem-conv-date">${esc(m.date)}</span>
+      <span class="mem-conv-summary">${esc(m.summary)}</span>
+      <button class="btn-danger-sm mem-conv-del" onclick="${deleteEndpoint}('${m.id}')">Delete</button>
+    </div>`).join('');
+}
+
+async function loadMyMemoryDump() {
+  const [notesRes, memsRes] = await Promise.allSettled([
+    api('GET', '/api/hypatia/me/hypatia-notes'),
+    api('GET', '/api/hypatia/me/memories'),
+  ]);
+  _renderMemTopics('mem', notesRes.status === 'fulfilled' ? (notesRes.value.notes || '') : '');
+  const listEl = document.getElementById('mem-conversations');
+  if (listEl) _renderMemConversations(listEl, memsRes.status === 'fulfilled' ? (memsRes.value.memories || []) : [], 'deleteMyMemory');
+}
+
+async function deleteMyMemory(pointId) {
+  if (!confirm('Delete this conversation memory?')) return;
+  await api('DELETE', `/api/hypatia/me/memories/${pointId}`);
+  loadMyMemoryDump();
+}
+
+// ── Admin: memory dump for any user ───────────────────────────────────────
 
 async function adminLoadMemoryUserList() {
   const sel = document.getElementById('admin-notes-user-sel');
-  if (!sel || sel.options.length > 1) return;  // already populated
+  if (!sel || sel.options.length > 1) return;
   try {
     const r = await api('GET', '/api/auth/superadmin/users');
     (r || []).forEach(u => {
@@ -1390,54 +1422,39 @@ async function adminLoadMemoryUserList() {
   } catch {}
 }
 
-async function adminLoadUserNotes() {
+async function adminLoadUserMemory() {
   const sel = document.getElementById('admin-notes-user-sel');
-  const ta = document.getElementById('admin-notes-ta');
-  const saveBtn = document.getElementById('admin-notes-save-btn');
-  const msg = document.getElementById('admin-notes-msg');
-  if (!sel || !ta) return;
-  const username = sel.value;
-  if (!username) { ta.value = ''; ta.disabled = true; saveBtn.disabled = true; return; }
-  ta.disabled = false;
-  saveBtn.disabled = false;
-  msg.textContent = 'Loading…';
-  try {
-    const r = await api('GET', `/api/hypatia/admin/users/${encodeURIComponent(username)}/hypatia-notes`);
-    ta.value = r.notes || '';
-    ta.placeholder = r.notes ? '' : 'No notes yet for this user.';
-    msg.textContent = '';
-  } catch {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = 'Could not load notes';
-  }
-}
-
-async function adminSaveUserNotes() {
-  const sel = document.getElementById('admin-notes-user-sel');
-  const ta = document.getElementById('admin-notes-ta');
+  const dumpEl = document.getElementById('admin-mem-dump');
+  const clearBtn = document.getElementById('admin-notes-clear-btn');
   const msg = document.getElementById('admin-notes-msg');
   const username = sel?.value;
-  if (!username) return;
-  try {
-    await api('PUT', `/api/hypatia/admin/users/${encodeURIComponent(username)}/hypatia-notes`, { notes: ta.value });
-    msg.style.color = 'var(--green)';
-    msg.textContent = 'Saved';
-    setTimeout(() => msg.textContent = '', 2500);
-  } catch (e) {
-    msg.style.color = 'var(--danger)';
-    msg.textContent = e.message || 'Save failed';
-  }
+  if (!username) { if (dumpEl) dumpEl.style.display = 'none'; if (clearBtn) clearBtn.disabled = true; return; }
+  if (dumpEl) dumpEl.style.display = 'block';
+  if (clearBtn) clearBtn.disabled = false;
+  msg.textContent = 'Loading…';
+  const [notesRes, memsRes] = await Promise.allSettled([
+    api('GET', `/api/hypatia/admin/users/${encodeURIComponent(username)}/hypatia-notes`),
+    api('GET', `/api/hypatia/admin/users/${encodeURIComponent(username)}/memories`),
+  ]);
+  msg.textContent = '';
+  _renderMemTopics('admin-mem', notesRes.status === 'fulfilled' ? (notesRes.value.notes || '') : '');
+  const listEl = document.getElementById('admin-mem-conversations');
+  if (listEl) _renderMemConversations(listEl, memsRes.status === 'fulfilled' ? (memsRes.value.memories || []) : [], `(id) => adminDeleteMemory('${username}', id)`);
 }
 
 async function adminClearUserNotesConfirm() {
   const sel = document.getElementById('admin-notes-user-sel');
   const username = sel?.value;
   if (!username) return;
-  if (!confirm(`Clear Hypatia's notes about ${username}?`)) return;
-  try {
-    await api('DELETE', `/api/hypatia/admin/users/${encodeURIComponent(username)}/hypatia-notes`);
-    document.getElementById('admin-notes-ta').value = '';
-  } catch {}
+  if (!confirm(`Clear all of Hypatia's topic notes about ${username}?`)) return;
+  await api('DELETE', `/api/hypatia/admin/users/${encodeURIComponent(username)}/hypatia-notes`);
+  adminLoadUserMemory();
+}
+
+async function adminDeleteMemory(username, pointId) {
+  if (!confirm('Delete this conversation memory?')) return;
+  await api('DELETE', `/api/hypatia/admin/users/${encodeURIComponent(username)}/memories/${pointId}`);
+  adminLoadUserMemory();
 }
 
 async function loadAiPrefs() {

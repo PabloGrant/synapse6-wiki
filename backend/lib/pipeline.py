@@ -246,6 +246,44 @@ async def qdrant_mem_search(
         return resp.json().get("result", [])
 
 
+async def qdrant_mem_list(username: str, limit: int = 100) -> list[dict]:
+    """Scroll/list ALL memory points for a user, sorted newest first."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{QDRANT_URL}/collections/{QDRANT_MEM_COL}/points/scroll",
+            json={
+                "limit": limit,
+                "with_payload": True,
+                "with_vector": False,
+                "filter": {
+                    "must": [{"key": "username", "match": {"value": username}}]
+                },
+            },
+        )
+        resp.raise_for_status()
+        points = resp.json().get("result", {}).get("points", [])
+        # Sort newest first by date payload field
+        return sorted(points, key=lambda p: p["payload"].get("date", ""), reverse=True)
+
+
+async def qdrant_mem_delete(point_id: str, username: str):
+    """Delete a single memory point, but ONLY if it belongs to username."""
+    # Fetch the point first to verify ownership before deleting
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.post(
+            f"{QDRANT_URL}/collections/{QDRANT_MEM_COL}/points",
+            json={"ids": [point_id], "with_payload": True},
+        )
+        points = r.json().get("result", [])
+        if not points or points[0]["payload"].get("username") != username:
+            raise ValueError("Not found or access denied")
+        resp = await client.post(
+            f"{QDRANT_URL}/collections/{QDRANT_MEM_COL}/points/delete",
+            json={"points": [point_id]},
+        )
+        resp.raise_for_status()
+
+
 # ── Text chunking ─────────────────────────────────────────────────────────
 
 def chunk_markdown(text: str, max_chars: int = 1500, min_chars: int = 80) -> list[dict]:
