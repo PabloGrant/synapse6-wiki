@@ -1650,6 +1650,24 @@ async function saveSiteSettings(e) {
   alert('Site settings saved.');
 }
 
+async function reindexAllPages() {
+  const btn = document.getElementById('reindex-btn');
+  const status = document.getElementById('reindex-status');
+  btn.disabled = true;
+  status.textContent = 'Indexing…';
+  try {
+    const r = await api('POST', '/api/pages/reindex-all');
+    status.style.color = 'var(--green)';
+    status.textContent = `Queued ${r.queued} page${r.queued !== 1 ? 's' : ''} for re-indexing.`;
+  } catch (e) {
+    status.style.color = 'var(--danger)';
+    status.textContent = `Error: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    setTimeout(() => { status.textContent = ''; }, 8000);
+  }
+}
+
 const AVATAR_STATES = [
   { key: 'idle',      label: 'Idle' },
   { key: 'listening', label: 'Listening' },

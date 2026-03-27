@@ -518,6 +518,10 @@
           <label>Tagline<input type="text" id="site-tagline-input"></label>
           <button type="submit" class="btn-primary">Save</button>
         </form>
+        <div class="admin-section-title" style="margin-top:32px">Knowledge Base</div>
+        <p style="font-size:13px;color:var(--subtext);margin:0 0 12px">Re-index all wiki pages into the vector database. Run this after schema changes or if Hypatia seems to be missing page content.</p>
+        <button class="btn-ghost" id="reindex-btn" onclick="reindexAllPages()">Re-index All Pages</button>
+        <span id="reindex-status" style="margin-left:12px;font-size:13px;color:var(--subtext)"></span>
       </div>
 
       <!-- SA HYPATIA TAB -->

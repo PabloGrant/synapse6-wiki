@@ -78,15 +78,37 @@ async def _index_page(slug: str, content: str, timestamp: int, editor: str):
         pass
 
     # Chunk and embed
+    # Strategy: embed both the full page (whole-document vector, up to 32k chars)
+    # and individual section chunks. The whole-page vector ensures "tell me about X"
+    # queries always retrieve complete content; section chunks aid precise fact lookup.
     vectors_count = 0
     chunks = chunk_markdown(content)
     if chunks:
         try:
-            texts = [c["content"] for c in chunks]
+            # Build texts: whole page first, then section chunks
+            whole_page = content[:32000]  # 32k context embedding model ceiling
+            texts = [whole_page] + [c["content"] for c in chunks]
             vectors = await embed(texts, settings)
 
             points = []
-            for chunk, vector in zip(chunks, vectors):
+            # Whole-page point (chunk_index = -1 to distinguish)
+            points.append({
+                "id": str(uuid.uuid4()),
+                "vector": vectors[0],
+                "payload": {
+                    "type": "wiki_page",
+                    "slug": slug,
+                    "page_title": title,
+                    "heading": "",
+                    "chunk_index": -1,
+                    "content": whole_page,
+                    "editor": editor,
+                    "timestamp": timestamp,
+                    "indexed_at": now_iso(),
+                },
+            })
+            # Section chunk points
+            for chunk, vector in zip(chunks, vectors[1:]):
                 points.append({
                     "id": str(uuid.uuid4()),
                     "vector": vector,
@@ -265,6 +287,30 @@ async def delete_version(slug: str, filename: str):
             await _deindex_page(slug)
 
     return {"ok": True}
+
+
+@router.post("/reindex-all", dependencies=[Depends(require_role("superadmin"))])
+async def reindex_all():
+    """Re-index every wiki page into Qdrant. Fires background tasks; returns immediately."""
+    if not os.path.exists(CONTENT_DIR):
+        return {"ok": True, "queued": 0}
+    queued = 0
+    for slug in os.listdir(CONTENT_DIR):
+        d = _page_dir(slug)
+        if not os.path.isdir(d):
+            continue
+        versions = _list_versions(slug)
+        if not versions:
+            continue
+        path = os.path.join(d, versions[0]["filename"])
+        try:
+            async with aiofiles.open(path, "r") as f:
+                content = await f.read()
+            asyncio.create_task(_index_page(slug, content, versions[0]["timestamp"], versions[0]["editor"]))
+            queued += 1
+        except Exception:
+            pass
+    return {"ok": True, "queued": queued}
 
 
 @router.delete("/{slug}", dependencies=[Depends(require_role("admin"))])
