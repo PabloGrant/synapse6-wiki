@@ -1019,6 +1019,7 @@ async function initRightSidebar() {
   await loadHypatiaFonts();
   initHypatiaAvatar();
   _updateFontToggleBtn();
+  initChatTips();
 
   const session = _loadHypatiaSession();
   if (session && session.history.length) {
@@ -1273,6 +1274,39 @@ function toggleHypatiaExpand() {
   const expanded = document.body.classList.toggle('hypatia-expanded');
   const btn = document.getElementById('chat-expand-btn');
   if (btn) btn.innerHTML = expanded ? '&#x2923;' : '&#x2922;';
+}
+
+// ── CHAT TIPS ──────────────────────────────────────────────────────────────
+
+const CHAT_TIPS = [
+  'Expand the sidebar with <b>⤢</b>, or pop the chat into its own resizable window with <b>↗</b> — perfect for reading tables.',
+  'Need a visual? Say <b>"draw me…"</b> or <b>"generate an image of…"</b> and I\'ll create one for you.',
+  'I have full access to every wiki page and uploaded library document — ask me anything about the team\'s work.',
+  'I can build diagrams: ask me to <b>"make a flowchart of…"</b> or <b>"draw a sequence diagram for…"</b> and I\'ll write the Mermaid chart.',
+  'I track the full context of our conversation — ask follow-up questions naturally without re-explaining the background.',
+  'Ask me to <b>compare two documents</b> or find contradictions between sources — I\'ll surface the differences.',
+  'Hit <b>+</b> to start a fresh conversation when switching to a completely different topic.',
+  'Try asking <b>"what do we know about X?"</b> to pull together everything across pages and documents on any topic.',
+  'You can paste raw text or data into the chat and ask me to summarize, reformat, or analyse it.',
+  'Ask me <b>"what pages exist about…?"</b> to discover relevant wiki content you might not know about.',
+];
+
+function _tipHourSlot() {
+  return Math.floor(Date.now() / (60 * 60 * 1000));
+}
+
+function initChatTips() {
+  const slot = _tipHourSlot();
+  const dismissed = parseInt(localStorage.getItem('hypatia_tip_dismissed') || '0', 10);
+  if (dismissed === slot) return; // already dismissed this hour
+  const tip = CHAT_TIPS[slot % CHAT_TIPS.length];
+  document.getElementById('chat-tip-text').innerHTML = tip;
+  document.getElementById('chat-tip-banner').classList.remove('hidden');
+}
+
+function dismissChatTip() {
+  localStorage.setItem('hypatia_tip_dismissed', String(_tipHourSlot()));
+  document.getElementById('chat-tip-banner').classList.add('hidden');
 }
 
 function popoutChat() {

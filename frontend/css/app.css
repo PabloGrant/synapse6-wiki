@@ -488,6 +488,27 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
   width: 100%;
 }
 #right-sidebar .hypatia-name-block { flex: 1; min-width: 0; }
+
+/* ── CHAT TIP BANNER ── */
+#chat-tip-banner {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 12px;
+  background: rgba(124,184,153,0.07);
+  border-bottom: 1px solid rgba(124,184,153,0.18);
+  font-size: 12px; line-height: 1.5; color: var(--subtext);
+  flex-shrink: 0;
+}
+#chat-tip-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+#chat-tip-text { flex: 1; }
+#chat-tip-text b { color: var(--text); font-weight: 600; }
+.chat-tip-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--subtext); font-size: 13px; padding: 0 2px;
+  flex-shrink: 0; line-height: 1; margin-top: 1px;
+  opacity: 0.6; transition: opacity 0.15s;
+}
+.chat-tip-close:hover { opacity: 1; }
+
 /* No-right-sidebar mode (admin panel) */
 .no-right-sidebar #right-sidebar { display: none; }
 .no-right-sidebar #main {
