@@ -877,7 +877,13 @@ async function newConversation() {
   const btn = document.getElementById('chat-new-btn');
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   await _endSession(true);
-  if (btn) { btn.disabled = false; btn.innerHTML = '&#8635;'; }
+  if (btn) { btn.disabled = false; btn.innerHTML = '&#43;'; }
+}
+
+function toggleHypatiaExpand() {
+  const expanded = document.body.classList.toggle('hypatia-expanded');
+  const btn = document.getElementById('chat-expand-btn');
+  if (btn) btn.innerHTML = expanded ? '&#x2923;' : '&#x2922;';
 }
 
 // Beacon on page unload (fire-and-forget, browser may discard if too slow)

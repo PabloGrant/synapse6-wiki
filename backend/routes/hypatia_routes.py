@@ -378,19 +378,7 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
             default_name = default_font["name"] if default_font else "your current font"
             full_system += f"\n\nFont expression: You express emotional tone through font selection. On your FIRST response, always choose a font and prefix with FONT:FontName on the very first line. After that, only prefix again when the conversational vibe genuinely shifts — hold a font through a mood or topic arc. Do not prefix if keeping the current font. Use exact font names only. Available fonts:\n{font_lines}\nDefault/neutral: {default_name}"
 
-    messages = [{"role": "system", "content": full_system}]
-    messages += [{"role": m.role, "content": m.content} for m in body.messages]
-
-    # Build ordered list of enabled LLM models; fall back to env vars if none configured
-    llm_models = [
-        m for m in settings.get("llm_models", [])
-        if m.get("enabled") and m.get("type", "llm") == "llm"
-    ]
-    llm_models.sort(key=lambda m: m.get("order", 0))
-
-    if not llm_models:
-        llm_models = [{"api_endpoint": LLM_BASE, "api_token": "", "model_name": LLM_MODEL}]
-
+    # Image generation — must be injected into full_system BEFORE messages is constructed
     image_gen_cfg = settings.get("image_gen", {})
     tools = [GENERATE_IMAGE_TOOL] if image_gen_cfg.get("enabled") else []
 
@@ -403,7 +391,7 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
         "show me", "can you draw", "can you create", "can you generate", "can you make",
     )
     _last_user = next(
-        (m.content.lower() for m in reversed(body.messages) if m.role == "user"), ""
+        (m.content.lower() for m in reversed(body.messages) if m.role == "user" and m.content), ""
     )
     _force_image = tools and any(kw in _last_user for kw in _IMAGE_KEYWORDS)
 
@@ -421,6 +409,19 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
             "(e.g. 'in the style of a 1970s science fiction paperback cover'); "
             "avoid negative prompts — Flux ignores them; keep prompts under ~200 words."
         )
+
+    messages = [{"role": "system", "content": full_system}]
+    messages += [{"role": m.role, "content": m.content} for m in body.messages]
+
+    # Build ordered list of enabled LLM models; fall back to env vars if none configured
+    llm_models = [
+        m for m in settings.get("llm_models", [])
+        if m.get("enabled") and m.get("type", "llm") == "llm"
+    ]
+    llm_models.sort(key=lambda m: m.get("order", 0))
+
+    if not llm_models:
+        llm_models = [{"api_endpoint": LLM_BASE, "api_token": "", "model_name": LLM_MODEL}]
 
     last_error = None
     async with httpx.AsyncClient(timeout=120) as client:
@@ -466,15 +467,8 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
                             "tool_call_id": tc.get("id", ""),
                             "content": tc_content,
                         })
-                    # Second call: LLM responds with text after seeing the tool result
-                    followup = messages + [choice["message"]] + tool_msgs
-                    resp2 = await client.post(
-                        f"{base}/v1/chat/completions",
-                        headers=headers,
-                        json={"model": model["model_name"], "messages": followup, "max_tokens": 512, "temperature": 0.4, "stream": False},
-                    )
-                    resp2.raise_for_status()
-                    reply = _extract_content(resp2.json())
+                    # If the image was generated successfully, no text reply needed
+                    reply = "" if image_url else "I tried to generate the image but something went wrong."
                 else:
                     reply = _extract_content(data)
 
