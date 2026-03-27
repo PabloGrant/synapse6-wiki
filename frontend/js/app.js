@@ -639,7 +639,7 @@ async function initRightSidebar() {
     msgs.innerHTML = '';
     msgs.classList.add('no-anim');
     for (const msg of chatHistory) {
-      appendChatMsg(msg.role, msg.content);
+      appendChatMsg(msg.role, msg.content, null, msg.ts || null);
     }
     msgs.classList.remove('no-anim');
     msgs.scrollTop = msgs.scrollHeight;
@@ -663,8 +663,9 @@ async function sendHiddenGreeting() {
     await fadeOutMsg(thinking);
     const { font, text: clean } = _parseFontPrefix(r.reply);
     if (font) _currentHypatiaFont = font;
-    appendChatMsg('assistant', clean || r.reply);
-    chatHistory = [{ role: 'assistant', content: clean || r.reply }];
+    const greetTs = Date.now();
+    appendChatMsg('assistant', clean || r.reply, null, greetTs);
+    chatHistory = [{ role: 'assistant', content: clean || r.reply, ts: greetTs }];
     _saveHypatiaSession();
     setHypatiaState('idle');
   } catch {
@@ -680,8 +681,9 @@ async function sendChat(e) {
   const text = input.value.trim();
   if (!text) return;
   clearTimeout(_listeningTimer);
-  appendChatMsg('user', text);
-  chatHistory.push({ role: 'user', content: text });
+  const userTs = Date.now();
+  appendChatMsg('user', text, null, userTs);
+  chatHistory.push({ role: 'user', content: text, ts: userTs });
   input.value = '';
   setHypatiaState('thinking');
   const thinking = appendChatMsg('assistant', '…', 'thinking');
@@ -695,8 +697,9 @@ async function sendChat(e) {
     const { font, text: clean } = _parseFontPrefix(r.reply);
     if (font) _currentHypatiaFont = font;
     const reply = clean || r.reply;
-    appendChatMsg('assistant', reply);
-    chatHistory.push({ role: 'assistant', content: reply });
+    const replyTs = Date.now();
+    appendChatMsg('assistant', reply, null, replyTs);
+    chatHistory.push({ role: 'assistant', content: reply, ts: replyTs });
     _saveHypatiaSession();
     setHypatiaState('idle');
   } catch (ex) {
@@ -715,7 +718,7 @@ function fadeOutMsg(el) {
   });
 }
 
-function appendChatMsg(role, text, state = null) {
+function appendChatMsg(role, text, state = null, ts = null) {
   const msgs = document.getElementById('chat-messages');
   const isThinking = state === 'thinking';
 
@@ -737,9 +740,10 @@ function appendChatMsg(role, text, state = null) {
     ? `<div class="chat-avatar chat-avatar-hyp">HYP</div>`
     : `<div class="chat-avatar">${(currentUser?.sub?.[0] || 'U').toUpperCase()}</div>`;
 
-  const now = new Date();
-  const ts = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  const tsHtml = `<span class="chat-ts">${ts}</span>`;
+  const tsLabel = ts
+    ? new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const tsHtml = `<span class="chat-ts">${tsLabel}</span>`;
 
   const div = document.createElement('div');
   div.className = `chat-msg ${role}`;
