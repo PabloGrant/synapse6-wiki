@@ -393,6 +393,15 @@ async def chat(body: ChatBody, user=Depends(get_current_user)):
 
     image_gen_cfg = settings.get("image_gen", {})
     tools = [GENERATE_IMAGE_TOOL] if image_gen_cfg.get("enabled") else []
+    if tools:
+        full_system += (
+            "\n\n## Image Generation\nYou have access to a Flux 1 Dev image generation tool. "
+            "When you use it, write the prompt yourself — never pass the user's words verbatim. "
+            "Flux 1 Dev best practices: use plain, descriptive natural language (no keyword lists); "
+            "describe subject, style, lighting, composition, and mood in full sentences or dense phrases; "
+            "Flux responds well to artistic style references (e.g. 'in the style of a 1970s science fiction paperback cover'); "
+            "avoid negative prompts — Flux ignores them; keep prompts under ~200 words for best results."
+        )
 
     last_error = None
     async with httpx.AsyncClient(timeout=120) as client:
@@ -676,6 +685,7 @@ class ImageGenConfig(BaseModel):
     height: int = 512
     cfg_scale: float = 1.0
     distilled_cfg_scale: float = 3.0
+    prompt_suffix: str = ""
 
 
 @router.get("/image-gen", dependencies=[Depends(require_role("superadmin"))])
@@ -732,15 +742,18 @@ GENERATE_IMAGE_TOOL = {
     "function": {
         "name": "generate_image",
         "description": (
-            "Generate an image from a detailed text prompt. "
-            "Use when the user asks you to create, draw, generate, illustrate, or visualize something."
+            "Generate an image using Flux. Call this when the user asks you to create, draw, generate, "
+            "illustrate, or visualize something. You MUST write the prompt yourself — do not pass the "
+            "user's words verbatim. Craft a detailed, descriptive Flux-style prompt: describe the subject "
+            "clearly, include style (e.g. photorealistic, illustration, sketch, isometric), lighting, "
+            "composition, color palette, and any relevant mood or atmosphere. Be specific and vivid."
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "prompt": {
                     "type": "string",
-                    "description": "A detailed image generation prompt describing exactly what to create",
+                    "description": "A detailed, Flux-optimized image generation prompt written by you — not the user's raw request",
                 }
             },
             "required": ["prompt"],
@@ -753,8 +766,10 @@ async def _generate_image(prompt: str, cfg: dict) -> dict:
     """Call ForgeNeo txt2img, upload result to MinIO, return {url} or {error}."""
     import base64, io as _io
     endpoint = cfg.get("api_endpoint", "http://100.74.90.66:6501").rstrip("/")
+    suffix = cfg.get("prompt_suffix", "").strip()
+    full_prompt = f"{prompt}, {suffix}" if suffix else prompt
     payload = {
-        "prompt": prompt,
+        "prompt": full_prompt,
         "negative_prompt": "",
         "sampler_name": cfg.get("sampler", "Euler"),
         "scheduler": cfg.get("scheduler", "Beta"),

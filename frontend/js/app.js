@@ -1561,6 +1561,7 @@ async function loadImageGenSettings() {
     document.getElementById('ig-height').value      = r.height ?? 512;
     document.getElementById('ig-cfg_scale').value   = r.cfg_scale ?? 1;
     document.getElementById('ig-distilled_cfg').value = r.distilled_cfg_scale ?? 3;
+    document.getElementById('ig-prompt_suffix').value = r.prompt_suffix || '';
   } catch {}
 }
 
@@ -1582,6 +1583,7 @@ async function saveImageGenSettings() {
       height:             parseInt(document.getElementById('ig-height').value) || 512,
       cfg_scale:          parseFloat(document.getElementById('ig-cfg_scale').value) || 1,
       distilled_cfg_scale: parseFloat(document.getElementById('ig-distilled_cfg').value) || 3,
+      prompt_suffix:      document.getElementById('ig-prompt_suffix').value.trim(),
     });
     msg.style.color = 'var(--green)'; msg.textContent = 'Saved';
     setTimeout(() => msg.textContent = '', 2000);
