@@ -373,6 +373,37 @@ async def _run_pipeline(
             _stage("running", "Generating summary…")
             summary_data = await _summarize(markdown, original_filename, settings)
 
+        # ── 4b. Whole-document vector ──────────────────────────────────────
+        # Embed summary + key points as a single doc-level vector so queries
+        # like "what's in X?" retrieve the right doc even without page-level match.
+        if summary_data.get("summary") and vectors_count > 0:
+            try:
+                key_pts = "\n".join(f"- {p}" for p in (summary_data.get("key_points") or []))
+                doc_text = f"{original_filename}\n\n{summary_data['summary']}"
+                if key_pts:
+                    doc_text += f"\n\nKey points:\n{key_pts}"
+                doc_vectors = await _embed([doc_text[:32000]], settings)
+                doc_point = {
+                    "id": str(uuid.uuid4()),
+                    "vector": doc_vectors[0],
+                    "payload": {
+                        "type": "library_page",
+                        "file_id": file_id,
+                        "original_filename": original_filename,
+                        "uploaded_by": uploaded_by,
+                        "page_number": 0,       # 0 = whole-document summary
+                        "page_type": "summary",
+                        "page_title": original_filename,
+                        "content": doc_text,
+                        "content_length": len(doc_text),
+                        "indexed_at": _now(),
+                    },
+                }
+                await _qdrant_upsert([doc_point])
+                vectors_count += 1
+            except Exception:
+                pass  # Non-fatal
+
         # ── 5. Save metadata ───────────────────────────────────────────────
         meta = {
             "id": file_id,
