@@ -936,10 +936,29 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
   width: 380px;
 }
 .modal-title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 16px; font-weight: 700;
   margin-bottom: 12px;
+  display: flex; align-items: center; justify-content: space-between;
 }
+.mermaid-editor-link {
+  font-size: 12px; font-weight: 400; color: var(--green);
+  text-decoration: none; letter-spacing: 0;
+}
+.mermaid-editor-link:hover { text-decoration: underline; }
+.mermaid-modal-ta {
+  width: 100%; height: 200px; resize: vertical;
+  background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text); font-family: monospace; font-size: 13px;
+  padding: 10px 12px; outline: none; line-height: 1.5;
+  transition: border-color 0.2s;
+}
+.mermaid-modal-ta:focus { border-color: var(--green); }
+.mermaid-wrap {
+  margin: 16px 0; text-align: center;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 16px; overflow-x: auto;
+}
+.mermaid-wrap svg { max-width: 100%; height: auto; }
 
 /* ── FONT ADMIN ── */
 .font-card { border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 8px; background: var(--card); }

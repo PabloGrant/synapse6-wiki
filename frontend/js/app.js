@@ -24,6 +24,7 @@ function toggleTheme() {
 document.addEventListener('DOMContentLoaded', async () => {
   applyTheme(localStorage.getItem('theme') || 'dark');
   marked.setOptions({ gfm: true, breaks: true });
+  mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
   // Load allowed domain hint for registration form
   try {
     const d = await api('GET', '/api/auth/domain');
@@ -310,6 +311,7 @@ async function loadPage(slug, cat, page, sub) {
   try {
     const data = await api('GET', `/api/pages/${slug}`);
     content.innerHTML = marked.parse(data.content || '');
+    renderMermaid(content);
     renderHistory(slug, data.versions || []);
     renderPageMeta(data.current_version);
     const isEditor = ['editor','admin','superadmin'].includes(currentUser?.role);
@@ -443,7 +445,9 @@ async function savePageProperties() {
 function cancelEdit() { showView('page'); }
 
 function livePreview() {
-  document.getElementById('editor-preview').innerHTML = marked.parse(document.getElementById('editor').value);
+  const el = document.getElementById('editor-preview');
+  el.innerHTML = marked.parse(document.getElementById('editor').value);
+  renderMermaid(el);
 }
 
 function toggleEditorPreview() {
@@ -552,13 +556,43 @@ function tbTable() {
 }
 
 function tbMermaid() {
+  document.getElementById('mermaid-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('mermaid-input').focus(), 50);
+}
+
+function closeMermaidModal() {
+  document.getElementById('mermaid-modal').classList.add('hidden');
+}
+
+function insertMermaidChart() {
+  const code = document.getElementById('mermaid-input').value.trim();
+  if (!code) { closeMermaidModal(); return; }
   const ta = document.getElementById('editor');
   const start = ta.selectionStart;
-  const chart = '\n```mermaid\ngraph TD\n  A[Start] --> B[End]\n```\n';
-  ta.value = ta.value.substring(0, start) + chart + ta.value.substring(start);
-  ta.selectionStart = ta.selectionEnd = start + chart.length;
+  const insert = '\n\n```mermaid\n' + code + '\n```\n\n';
+  ta.value = ta.value.substring(0, start) + insert + ta.value.substring(start);
+  ta.selectionStart = ta.selectionEnd = start + insert.length;
+  closeMermaidModal();
   ta.focus();
   livePreview();
+}
+
+async function renderMermaid(container) {
+  const blocks = container.querySelectorAll('pre > code.language-mermaid');
+  for (const block of blocks) {
+    const pre = block.parentElement;
+    const code = block.textContent;
+    const id = 'mm-' + Math.random().toString(36).slice(2, 9);
+    try {
+      const { svg } = await mermaid.render(id, code);
+      const wrap = document.createElement('div');
+      wrap.className = 'mermaid-wrap';
+      wrap.innerHTML = svg;
+      pre.replaceWith(wrap);
+    } catch (e) {
+      // Leave as code block if diagram fails to parse
+    }
+  }
 }
 
 function tbHr() {

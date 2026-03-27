@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Synapse6 Wiki</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 <link rel="stylesheet" href="/static/css/app.css">
 </head>
 <body class="loading">
@@ -99,6 +100,25 @@
     </div>
   </div>
 
+  <!-- MERMAID CHART MODAL -->
+  <div id="mermaid-modal" class="modal-overlay hidden">
+    <div class="modal-box" style="width:560px;max-width:95vw">
+      <div class="modal-title">Insert Chart
+        <a href="https://mermaidviewer.com/editor" target="_blank" rel="noopener" class="mermaid-editor-link">Open Mermaid Editor ↗</a>
+      </div>
+      <textarea id="mermaid-input" class="mermaid-modal-ta" spellcheck="false">graph TD
+  A[Start] --> B{Decision}
+  B -->|Yes| C[Do it]
+  B -->|No| D[Skip it]
+  C --> E[End]
+  D --> E</textarea>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn-primary" onclick="insertMermaidChart()">Insert</button>
+        <button class="btn-ghost" onclick="closeMermaidModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MAIN CONTENT -->
   <main id="main">
 
@@ -182,7 +202,7 @@
             <button type="button" class="tb-btn" onclick="tbLine('> ')" title="Blockquote">&ldquo;</button>
             <span class="tb-divider"></span>
             <button type="button" class="tb-btn" onclick="tbTable()" title="Insert table">&#9776;</button>
-            <button type="button" class="tb-btn" onclick="tbMermaid()" title="Insert Mermaid chart">&#9650;</button>
+            <button type="button" class="tb-btn" onclick="tbMermaid()" title="Insert Mermaid chart">Chart</button>
             <button type="button" class="tb-btn" onclick="tbHr()" title="Horizontal rule">&mdash;</button>
           </div>
           <textarea id="editor" spellcheck="true" oninput="livePreview()"></textarea>
