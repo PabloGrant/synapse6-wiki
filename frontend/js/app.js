@@ -311,14 +311,26 @@ async function loadPage(slug, cat, page, sub) {
     const data = await api('GET', `/api/pages/${slug}`);
     content.innerHTML = marked.parse(data.content || '');
     renderHistory(slug, data.versions || []);
+    renderPageMeta(data.current_version);
     const isEditor = ['editor','admin','superadmin'].includes(currentUser?.role);
     document.getElementById('edit-btn').classList.toggle('hidden', !isEditor);
     document.getElementById('history-btn').classList.toggle('hidden', !isEditor || !data.versions?.length);
     loadComments(slug);
   } catch (ex) {
+    document.getElementById('page-meta').textContent = '';
     content.innerHTML = `<p style="color:var(--subtext)">${ex.message === 'Page not found' ? '*(No content yet — click Edit to start writing)*' : 'Error loading page'}</p>`;
     loadComments(slug);
   }
+}
+
+function renderPageMeta(version) {
+  const el = document.getElementById('page-meta');
+  if (!version || !version.timestamp) { el.textContent = ''; return; }
+  const date = new Date(version.timestamp * 1000).toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric'
+  });
+  const editor = version.editor || 'unknown';
+  el.innerHTML = `Last edited on: <span>${date}</span> by <span>${esc(editor)}</span>`;
 }
 
 function renderHistory(slug, versions) {

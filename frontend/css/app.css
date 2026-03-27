@@ -281,10 +281,16 @@ body.loading #app, body.loading #auth-overlay { opacity: 0; }
 /* ── PAGE VIEW ── */
 #page-header {
   display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 28px;
+  margin-bottom: 6px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
 }
+#page-meta {
+  font-size: 11px; color: var(--subtext);
+  margin-bottom: 24px;
+  letter-spacing: 0.02em;
+}
+#page-meta span { color: var(--text); }
 
 #page-breadcrumb { font-size: 13px; color: var(--subtext); }
 #page-breadcrumb span { color: var(--text); }
