@@ -1130,6 +1130,7 @@ async function sendChat(e) {
     chatHistory.push({ role: 'assistant', content: reply, ts: replyTs, image_url: imgUrl });
     _saveHypatiaSession();
     setHypatiaState('idle');
+    _maybeAutoReflect(); // fire-and-forget; no await
   } catch (ex) {
     clearTimeout(_phraseDelay);
     _stopImageGenPhrases();
@@ -1250,16 +1251,32 @@ function switchProfileTab(tab) {
 
 // ── Session reflection + new conversation ─────────────────────────────────
 
+let _lastReflectTurnCount = 0;
+const REFLECT_EVERY_N_TURNS = 5;
+
 async function _endSession(thenClear) {
   // Fire-and-forget reflect if there's substantive conversation
   const userTurns = chatHistory.filter(m => m.role === 'user');
   if (userTurns.length >= 2) {
     try {
       await api('POST', '/api/hypatia/reflect', { messages: chatHistory });
+      _lastReflectTurnCount = userTurns.length;
     } catch {}
   }
   if (thenClear) {
     _clearSession();
+    _lastReflectTurnCount = 0;
+  }
+}
+
+async function _maybeAutoReflect() {
+  const userTurns = chatHistory.filter(m => m.role === 'user');
+  const newTurns = userTurns.length - _lastReflectTurnCount;
+  if (userTurns.length >= 2 && newTurns >= REFLECT_EVERY_N_TURNS) {
+    try {
+      await api('POST', '/api/hypatia/reflect', { messages: chatHistory });
+      _lastReflectTurnCount = userTurns.length;
+    } catch {}
   }
 }
 
@@ -1336,6 +1353,24 @@ window.addEventListener('beforeunload', () => {
 });
 
 // ── Hypatia notes (read-only display) ─────────────────────────────────────
+
+async function reflectNow() {
+  const msg = document.getElementById('hypatia-notes-msg');
+  const userTurns = chatHistory.filter(m => m.role === 'user');
+  if (userTurns.length < 2) {
+    if (msg) { msg.style.color = 'var(--subtext)'; msg.textContent = 'Need at least 2 messages in the current conversation.'; setTimeout(() => msg.textContent = '', 3000); }
+    return;
+  }
+  if (msg) { msg.style.color = 'var(--subtext)'; msg.textContent = 'Reflecting…'; }
+  try {
+    await api('POST', '/api/hypatia/reflect', { messages: chatHistory });
+    _lastReflectTurnCount = userTurns.length;
+    if (msg) { msg.style.color = 'var(--green)'; msg.textContent = 'Done — memory updated.'; setTimeout(() => msg.textContent = '', 3000); }
+    loadMyMemoryDump();
+  } catch (e) {
+    if (msg) { msg.style.color = 'var(--danger)'; msg.textContent = `Error: ${e.message}`; setTimeout(() => msg.textContent = '', 4000); }
+  }
+}
 
 async function loadHypatiaNotesDisplay() {
   const ta = document.getElementById('hypatia-notes-ta');
