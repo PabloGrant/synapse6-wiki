@@ -1356,17 +1356,16 @@ window.addEventListener('beforeunload', () => {
 
 async function reflectNow() {
   const msg = document.getElementById('hypatia-notes-msg');
-  const userTurns = chatHistory.filter(m => m.role === 'user');
-  if (userTurns.length < 2) {
-    if (msg) { msg.style.color = 'var(--subtext)'; msg.textContent = 'Need at least 2 messages in the current conversation.'; setTimeout(() => msg.textContent = '', 3000); }
-    return;
-  }
   if (msg) { msg.style.color = 'var(--subtext)'; msg.textContent = 'Reflecting…'; }
   try {
-    await api('POST', '/api/hypatia/reflect', { messages: chatHistory });
-    _lastReflectTurnCount = userTurns.length;
-    if (msg) { msg.style.color = 'var(--green)'; msg.textContent = 'Done — memory updated.'; setTimeout(() => msg.textContent = '', 3000); }
-    loadMyMemoryDump();
+    const r = await api('POST', '/api/hypatia/reflect', { messages: chatHistory });
+    if (r.skipped) {
+      if (msg) { msg.style.color = 'var(--subtext)'; msg.textContent = 'No active conversation to reflect on — chat with Hypatia first, then come back here.'; setTimeout(() => msg.textContent = '', 5000); }
+    } else {
+      _lastReflectTurnCount = chatHistory.filter(m => m.role === 'user').length;
+      if (msg) { msg.style.color = 'var(--green)'; msg.textContent = 'Done — memory updated.'; setTimeout(() => msg.textContent = '', 3000); }
+      loadMyMemoryDump();
+    }
   } catch (e) {
     if (msg) { msg.style.color = 'var(--danger)'; msg.textContent = `Error: ${e.message}`; setTimeout(() => msg.textContent = '', 4000); }
   }
